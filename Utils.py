@@ -2,7 +2,7 @@
 
 import random
 import string
-
+import gmpy2
 
 # _ord = ord
 # _chr = chr
@@ -135,10 +135,6 @@ def add_padding(data, block_size=16):
     return data+chr(size)*size
 
 
-def gcd(a, b):
-    return b if a == 0 else gcd(b % a, a)
-
-
 def hamming_distance(a, b):
     return sum(map(int, [bin(int(b2h(xor(x, y)), 16)).count('1') for x, y in zip(a, b)] ))
 
@@ -159,5 +155,13 @@ def random_char():
     return chr(random.randint(32, 126))
 
 
-def random_byte():
-    return chr(random.randint(0,255))
+def random_bytes(amount=1):
+    return ''.join([chr(random.randint(0,255)) for x in xrange(amount)])
+
+
+def random_prime(bytes=512):
+    p = random.getrandbits(bytes)|1
+    while not gmpy2.is_bpsw_prp(p):
+        p = random.getrandbits(bytes)|1
+    return p
+
