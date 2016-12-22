@@ -47,25 +47,25 @@ class Log(object):
     def debug(self, a):
         min_level = 30
         if self._level >= min_level:
-            print("[D] "+str(a))
+            print("[D]"+str(a))
 
     def info(self, a):
         min_level = 20
         if self._level >= min_level:
-            print("[i] "+str(a))
+            print("[i]"+str(a))
 
     def success(self, a):
         min_level = 10
         if self._level >= min_level:
-            print("[+] " + str(a))
+            print("[+]" + str(a))
 
     def error(self, a):
         min_level = 10
         if self._level >= min_level:
-            print("[-] " + str(a))
+            print("[-]" + str(a))
 
     def critical_error(self, a):
-        raise Exception("[-] " + str(a))
+        raise Exception("[-]" + str(a))
 log = Log()
 
 
@@ -91,6 +91,17 @@ def h2i(a):
 def i2h(a):
     """Encode int as hex string"""
     return hex(a)[2:].strip('L')
+
+
+def b2i(a):
+    """Decode bytes to int"""
+    return int(a.encode('hex'), 16)
+
+
+def i2b(a):
+    """Encode int to bytes"""
+    a = hex(a)[2:].strip('L')
+    return ('0'*(len(a) & 1) + a).decode('hex')
 
 
 def is_printable(a, alphabet=string.printable, reliability=100.0):

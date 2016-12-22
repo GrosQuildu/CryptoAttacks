@@ -1,5 +1,6 @@
 from Crypto.PublicKey import RSA as PyRSA
 import itertools
+from Utils import *
 from Math import *
 from copy import deepcopy
 
@@ -7,8 +8,14 @@ from copy import deepcopy
 class RSAKey(PyRSA._RSAobj):
     def __init__(self):
         # log.critical_error("Create RSAKey via generate, construct or import_key method")
-        self.texts = []  # list of dict {'cipher':'ffaa', 'plain':'bb11'}
+        self.texts = []  # list of dict [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
         self.identifier = ''
+
+    def encrypt(self, plaintext):
+        return pow(plaintext, self.e, self.n)
+
+    def decrypt(self, ciphertext):
+        return pow(ciphertext, self.d, self.n)
 
     def copy(self, identifier=''):
         if self.has_private():
@@ -83,10 +90,10 @@ def common_primes(keys):
     """Find common prime in keys modules
 
     Args:
-        keys(list): of RSAKeys
+        keys(list):  RSAKeys
 
     Returns:
-        list: of RSAKeys for which factorization of n was found
+        list:  RSAKeys for which factorization of n was found
     """
     priv_keys = []
     for pair in itertools.combinations(keys, 2):
@@ -134,7 +141,7 @@ def hastad(keys):
     plaintext can be efficiently recovered
 
     Args:
-        keys(list): of RSAKeys, all with same public exponent e, len(keys) >= e, all with at least one ciphertext
+        keys(list):  RSAKeys, all with same public exponent e, len(keys) >= e, all with at least one ciphertext
 
     Returns:
         bool/string: False on failure, recovered plaintext otherwise
@@ -210,3 +217,54 @@ def faulty(key, padding=None):
     return False
 
 
+def parity_oracle(ciphertext):
+    """Function implementing parity oracle
+
+    Args:
+        ciphertext(int)
+
+    Returns:
+        int: 0 (if decrypted ciphertext is even) or 1 (is odd)
+    """
+    raise NotImplementedError
+
+
+def parity(parity_oracle, key):
+    """Given oracle that returns LSB of decrypted ciphertext we can decrypt whole ciphertext
+    parity_oracle method must be implemented
+
+    Args:
+        parity_oracle(function)
+        key(RSAKey): contains ciphertexts to decrypt
+
+    Returns:
+        list:  decrypted ciphertexts
+    """
+    try:
+        parity_oracle(1)
+    except NotImplementedError:
+        log.critical_error("Parity oracle not implemented")
+
+    for cipher in [pair['cipher'] for pair in key.texts if 'plain' not in pair and 'cipher' in pair]:
+        log.info("Decrypting {}".format(cipher))
+        two_encrypted = key.encrypt(2)
+
+        counter = lower_bound = numerator = 0
+        upper_bound = key.n
+        denominator = 1
+        while lower_bound+1 < upper_bound:
+            cipher = (two_encrypted * cipher) % key.n
+            denominator *= 2
+            numerator *= 2
+            counter += 1
+
+            is_odd = parity_oracle(cipher)
+            if is_odd:  # plaintext > n/(2**counter)
+                numerator += 1
+            lower_bound = (key.n * numerator) / denominator
+            upper_bound = (key.n * (numerator+1)) / denominator
+
+            log.debug("{} {} [{}, {}]".format(counter, is_odd, long(lower_bound), long(upper_bound)))
+            log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator+1, denominator))
+        log.success("Decrypted: {}".format(i2b(upper_bound)))
+        return upper_bound

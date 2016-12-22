@@ -1,5 +1,7 @@
 import gmpy2
 from Utils import log
+import operator
+
 
 def continued_fractions(n, d):
     fractions = []
@@ -54,4 +56,20 @@ def crt(a, n):
         p = prod / n_i
         sum += a_i * gmpy2.invert(p, n_i) * p
     return long(sum % prod)
+
+
+def euler_totient(factors):
+    """Compute euler's phi (totient) function
+    
+    Args:
+        factors(dict/list): if dict: factorization of n, {p1: k1, p2: k2} <- n == p1**k1 * p2**k2
+                            if list: [p1, p2] <- n == p1*p2
+
+    Returns:
+        int
+    """
+    if type(factors) == dict:
+        return reduce(operator.mul, [(p**(factors[p]-1)) * (p - 1) for p in factors])
+    else:
+        return reduce(operator.mul, [p-1 for p in factors])
 

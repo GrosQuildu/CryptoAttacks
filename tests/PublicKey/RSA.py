@@ -3,6 +3,11 @@
 from PublicKey.RSA import *
 from Utils import *
 import os
+import subprocess
+
+key_static_2048 = RSAKey.import_key("private_key_2048.pem")
+key_static_1024 = RSAKey.import_key("private_key_1024.pem")
+log.level = 'debug'
 
 
 def test_wiener(tries=10):
@@ -31,7 +36,6 @@ def test_wiener(tries=10):
 
 def test_common_primes():
     print "Test: common primes"
-    log.level = 'debug'
     keys_path = "./common_prime/"
     keys = []
     for f in os.listdir(keys_path):
@@ -87,6 +91,26 @@ def test_faulty():
         key_recovered = faulty(key.publickey())
         assert key_recovered is False
 
+
+def parity_oracle(ciphertext):
+    ciphertext = i2b(ciphertext)
+    message = subprocess.check_output(["./parity_oracle.py", "decrypt", ciphertext.encode('hex')]).strip().decode('hex')
+    if message == '1':
+        return 1
+    return 0
+
+
+def test_parity():
+    print "Test: parity"
+    plaintext = "Some plaintext " + random_str(10) + " anything can it be"
+    ciphertext = subprocess.check_output(["./parity_oracle.py", "encrypt", plaintext.encode('hex')]).strip().decode('hex')
+
+    key_static_1024.texts.append({'cipher': b2i(ciphertext)})
+    msg_recovered = parity(parity_oracle, key_static_1024)
+    assert msg_recovered == b2i(plaintext)
+    key_static_1024.texts = []
+
+test_parity()
 test_faulty()
 test_hastad()
 test_common_primes()
