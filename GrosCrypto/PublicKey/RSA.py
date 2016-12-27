@@ -1,8 +1,9 @@
-from Crypto.PublicKey import RSA as PyRSA
 import itertools
-from Utils import *
-from Math import *
 from copy import deepcopy
+
+from Crypto.PublicKey import RSA as PyRSA
+from GrosCrypto.Math import *
+from GrosCrypto.Utils import *
 
 
 class RSAKey(PyRSA._RSAobj):
@@ -231,7 +232,7 @@ def parity_oracle(ciphertext):
 
 def parity(parity_oracle, key):
     """Given oracle that returns LSB of decrypted ciphertext we can decrypt whole ciphertext
-    parity_oracle method must be implemented
+    parity_oracle function must be implemented
 
     Args:
         parity_oracle(function)

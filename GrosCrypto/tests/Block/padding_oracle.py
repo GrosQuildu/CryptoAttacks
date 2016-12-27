@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-from Utils import *
-from Crypto.Cipher import AES
 import sys
+
+from Crypto.Cipher import AES
+from GrosCrypto.Utils import *
 
 KEY = 'asdf'*4
 

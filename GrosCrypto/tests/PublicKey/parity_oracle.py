@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from Utils import *
-from PublicKey.RSA import RSAKey
 import sys
+
+from GrosCrypto.PublicKey.RSA import RSAKey
+from GrosCrypto.Utils import *
 
 key = RSAKey.import_key("private_key_1024.pem")
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-from PublicKey.RSA import *
-from Utils import *
 import os
 import subprocess
+
+from GrosCrypto.PublicKey.RSA import *
+from GrosCrypto.Utils import *
 
 key_static_2048 = RSAKey.import_key("private_key_2048.pem")
 key_static_1024 = RSAKey.import_key("private_key_1024.pem")

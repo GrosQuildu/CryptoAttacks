@@ -127,7 +127,7 @@ def xor(*args, **kwargs):
     """Xor given values
 
         args - strings to be xored
-        expand - don't duplicate strings to size of the longest string if False
+        expand - don't expand strings to size of the longest string if False
     Return xored strings
     """
     if 'expand' in kwargs and kwargs['expand'] is False:

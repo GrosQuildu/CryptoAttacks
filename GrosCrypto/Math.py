@@ -1,5 +1,5 @@
 import gmpy2
-from Utils import log
+from GrosCrypto.Utils import log
 import operator
 
 
@@ -58,7 +58,7 @@ def crt(a, n):
     return long(sum % prod)
 
 
-def euler_totient(factors):
+def euler_phi(factors):
     """Compute euler's phi (totient) function
     
     Args:
@@ -73,3 +73,16 @@ def euler_totient(factors):
     else:
         return reduce(operator.mul, [p-1 for p in factors])
 
+
+def gcd(a, b):
+    """Greatest common divisor"""
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def factors(n):
+    """Find factors of n
+    from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python
+    """
+    return set(reduce(list.__add__, ([i, n//i] for i in range(2, int(n**0.5) + 1) if n % i == 0)))
