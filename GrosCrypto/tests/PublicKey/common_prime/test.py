@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from GrosCrypto.PublicKey.RSA import *
+from GrosCrypto.PublicKey.rsa import *
 import os
 
 keys = []

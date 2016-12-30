@@ -3,12 +3,11 @@
 import os
 import subprocess
 
-from GrosCrypto.PublicKey.RSA import *
+from GrosCrypto.PublicKey.rsa import *
 from GrosCrypto.Utils import *
 
-key_static_2048 = RSAKey.import_key("private_key_2048.pem")
-key_static_1024 = RSAKey.import_key("private_key_1024.pem")
-log.level = 'debug'
+key_static_2048 = None
+key_static_1024 = None
 
 
 def test_wiener(tries=10):
@@ -56,7 +55,7 @@ def test_hastad():
         keys = []
         for count in xrange(e):
             tmp = RSAKey.generate(n_size, e=e).publickey()
-            ciphertext = tmp.encrypt(msg, 0)[0]
+            ciphertext = tmp.encrypt(msg)
             tmp.texts.append({'cipher': ciphertext})
             keys.append(tmp)
         msg_recovered = hastad(keys)
@@ -111,8 +110,17 @@ def test_parity():
     assert msg_recovered == b2i(plaintext)
     key_static_1024.texts = []
 
-test_parity()
-test_faulty()
-test_hastad()
-test_common_primes()
-test_wiener()
+
+def run():
+    global key_static_2048, key_static_1024
+    key_static_2048 = RSAKey.import_key("private_key_2048.pem")
+    key_static_1024 = RSAKey.import_key("private_key_1024.pem")
+    log.level = 'debug'
+    test_parity()
+    test_faulty()
+    test_hastad()
+    test_common_primes()
+    test_wiener()
+
+if __name__ == "__main__":
+    run()

@@ -4,7 +4,7 @@ from Crypto.Cipher import AES, DES3
 from GrosCrypto.Block import ecb
 from GrosCrypto.Utils import *
 
-log.level = 'debug'
+
 block_size = AES.block_size
 prefix_len = 13
 suffix_len = 19
@@ -88,14 +88,21 @@ def test_decrypt():
     global constant, prefix_len, suffix_len, secret
     print "test: ecb.decrypt(encryption_oracle_aes, constant, block_size=AES.block_size)"
     constant = True
-    for x in xrange(5):
+    for x in xrange(20):
         prefix_len = random.randint(0, 50)
-        secret = random_str(random.randint(0, 50))
+        secret = random_str(random.randint(1, 50))
+        print "Secret to guess(hex): {}".format(secret.encode('hex'))
         guessed_secret = ecb.decrypt(encryption_oracle_aes, constant, block_size=AES.block_size)
         assert secret == guessed_secret
         guessed_secret = ecb.decrypt(encryption_oracle_des, constant, block_size=DES3.block_size)
         assert secret == guessed_secret
 
-test_find_block_size()
-test_find_prefix_suffix_size()
-test_decrypt()
+
+def run():
+    log.level = 'info'
+    test_find_block_size()
+    test_find_prefix_suffix_size()
+    test_decrypt()
+
+if __name__ == "__main__":
+    run()

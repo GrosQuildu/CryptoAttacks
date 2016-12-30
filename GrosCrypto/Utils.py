@@ -146,12 +146,19 @@ def add_padding(data, block_size=16):
     return data+chr(size)*size
 
 
+def strip_padding(data, block_size=16):
+    padding = ord(data[-1])
+    if padding == 0 or padding > block_size or data[-padding:] != chr(padding)*padding:
+        raise Exception("Invalid padding")
+    return data[:-padding]
+
+
 def hamming_distance(a, b):
     return sum(map(int, [bin(int(b2h(xor(x, y)), 16)).count('1') for x, y in zip(a, b)] ))
 
 
-def chunks(data, length):
-    return [data[0+i:length+i] for i in range(0, len(data), length)]
+def chunks(data, block_size):
+    return [data[0+i:block_size+i] for i in range(0, len(data), block_size)]
 
 
 def print_chunks(data, delim=' | '):

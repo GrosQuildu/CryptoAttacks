@@ -264,7 +264,7 @@ def get_frequencies_dict():
 
 
 def get_frequencies(a):
-    """Calculate letter frequencies in string a"""
+    """Calculate letter frequencies in given string"""
     result = {}
     for letter in a:
         letter = string.lower(letter)
@@ -277,14 +277,22 @@ def get_frequencies(a):
     return result
 
 
-def compare_by_frequencies(a, b, lang='English', no_of_comparisions=5):
-    """Check which text have more simillar letter frequencies to lang (no_of_comparisions most common letters)
-    todo: add words, diagraphs etc..."""
+def compare_by_frequencies(a, b, lang='English', no_of_comparisons=5):
+    """Check which text have more similar letter frequencies (compared to language)
+    todo: add words, diagraphs etc...
+
+    Args:
+        a(string)
+        b(string)
+        lang(string)
+        no_of_comparisons(int): how much letters compare
+
+    Returns:
+        int: -1 if a is less similar than b, 0 if equal, 1 if a is more similar
+    """
     if lang not in frequencies:
-        print "[-] Can't find language {}".format(lang)
-        sys.exit(1)
-    # print no_of_comparisions
-    language_frequencies = frequencies[lang][:no_of_comparisions]
+        log.critical_error("[-] Can't find language {}".format(lang))
+    language_frequencies = frequencies[lang][:no_of_comparisons]
 
     freq = {a: get_frequencies(a), b: get_frequencies(b)}
     result = {a: 0, b: 0}
@@ -298,17 +306,29 @@ def compare_by_frequencies(a, b, lang='English', no_of_comparisions=5):
             else:
                 result[word] += abs(freq[word][letter] - letter_frequency)
 
-    if result[a] < result[b]:
-        return -1
-    elif result[a] > result[b]:
+    if result[a] < result[b]:  # less means that is closer to language frequencies
         return 1
+    elif result[a] > result[b]:
+        return -1
     else:
         return 0
 
 
-def break_one_char_key(cipher, lang='English', no_of_comparisions=5, alphabet=False, key_space=False,
+def break_one_char_key(ciphertext, lang='English', no_of_comparisons=5, alphabet=False, key_space=False,
                        reliability=100.0):
-    """Brute for all one-char keys, return most language-like"""
+    """Brute for all one-char keys, return most language-like
+
+    Args:
+        ciphertext(string): text xored with short key
+        lang(string): key in frequencies dict
+        no_of_comparisons(int): used during comparing by frequencies
+        alphabet(string/None): plaintext space
+        key_space(string/None): key space
+        reliability(float): between 0 and 100, used during comparing by frequencies
+
+    Returns:
+        list: sorted (by frequencies) list of tuples (key, plaintext)
+    """
     if not alphabet:
         alphabet = string.printable
     if not key_space:
@@ -316,21 +336,32 @@ def break_one_char_key(cipher, lang='English', no_of_comparisions=5, alphabet=Fa
 
     result = {}
     for key in key_space:
-        xored = xor(cipher, key)
+        xored = xor(ciphertext, key)
         if is_printable(xored, alphabet=alphabet, reliability=reliability):
             result[key] = xored
     if result:
-        return sorted(result.items(), key=operator.itemgetter(1),
-                      cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisions=no_of_comparisions))
+        return sorted(result.items(), key=operator.itemgetter(1), reverse=True,
+                      cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisons=no_of_comparisons))
     return False
 
 
-def guess_key_size(cipher, max_key_size=40):
-    """todo: check it and make it better (and proved somehow)
-    http://trustedsignal.blogspot.com/2015/06/xord-play-normalized-hamming-distance.html"""
+def guess_key_size(ciphertext, max_key_size=40):
+    """Given sentence xored with short key, guess key size
+    From: http://trustedsignal.blogspot.com/2015/06/xord-play-normalized-hamming-distance.html
+
+    Args:
+         ciphertext(string)
+         max_key_size(int)
+
+    Returns:
+        list: sorted list of tuples (key_size, probability), note that most probable key size not necessary have the largest probability
+    """
+    if not max_key_size:
+        max_key_size = len(ciphertext)/4
+
     result = {}
     for key_size in xrange(1, max_key_size):
-        blocks = re.findall('.' * key_size, cipher, re.DOTALL)
+        blocks = re.findall('.' * key_size, ciphertext, re.DOTALL)
         if len(blocks) < 2:
             break
 
@@ -358,7 +389,7 @@ def guess_key_size(cipher, max_key_size=40):
     #                 break
     #         result[0] == (gcd12, 1.0)
 
-    # from link, case two; yep, black magic it is (like no actuall math involved)
+    # from link, case two; yep, black magic it is
     gcd_frequencies = defaultdict(lambda: 0)
     for gcd_pairs in itertools.combinations(result[:10], 2):
         gcd_tmp = gcd(gcd_pairs[0][0], gcd_pairs[1][0])
@@ -374,34 +405,77 @@ def guess_key_size(cipher, max_key_size=40):
             if gmks_position[1] < max(distances):
                 result.remove(gmks_position)
                 result = [gmks_position] + result
+    log.info("Guessed key size: {}".format(result))
     return result
 
 
-def break_reuse_key(cipher, lang='English', no_of_comparisions=5, key_size=False, max_key_size=40, alphabet=False,
-                    key_space=False, reliability=100.0):
-    """Solve it like one_char_key, but for blocks derived from every nth letter
-    todo: speed it up"""
-    if not key_size:
-        key_size = guess_key_size(cipher, max_key_size)[0][0]
-    print "guessed_key_sizes: ", key_size
+def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size=None, max_key_size=40, alphabet=None,
+                       key_space=None, reliability=100.0):
+    """Short key encrypted with long plaintext
 
-    cipher_same_key_char = [cipher[i::key_size] for i in xrange(key_size)]
+    Args:
+        ciphertext(string): text xored with short key
+        lang(string): key in frequencies dict
+        no_of_comparisons(int): used during comparing by frequencies
+        key_size(int/None)
+        max_key_size(int/None)
+        alphabet(string/None): plaintext space
+        key_space(string/None): key space
+        reliability(float): between 0 and 100, used during comparing by frequencies
+
+    Returns:
+        list: sorted (by frequencies) list of tuples (key, plaintext)
+    """
+    if not key_size:
+        key_size = guess_key_size(ciphertext, max_key_size)[0][0]
+
+    cipher_same_key_char = [ciphertext[i::key_size] for i in xrange(key_size)]
     key = {}
     for position, item in enumerate(cipher_same_key_char):
-        key_char = break_one_char_key(item, lang=lang, no_of_comparisions=no_of_comparisions, alphabet=alphabet,
+        key_char = break_one_char_key(item, lang=lang, no_of_comparisons=no_of_comparisons, alphabet=alphabet,
                                       key_space=key_space, reliability=reliability)
         if not key_char:
             continue
-        key_char = key_char[0]  # get only most probably, becouse of product size
+        key_char = key_char[0]  # get only most probable, because product may be large
         key[position] = key_char
 
     key = [x[1] for x in key.items()]
     key = [x[0] for x in key]
     if not key:
         return False
+
     plaintexts = {}
     for guessed_key in itertools.product(*key):
         guessed_key = ''.join(guessed_key)
-        plaintexts[guessed_key] = xor(guessed_key, cipher)
-    return sorted(plaintexts.items(), key=operator.itemgetter(1),
-                  cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisions=no_of_comparisions))
+        plaintexts[guessed_key] = xor(guessed_key, ciphertext)
+    return sorted(plaintexts.items(), key=operator.itemgetter(1), reverse=True,
+                  cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisons=no_of_comparisons))
+
+
+def break_reuse_key(ciphertexts, lang='English', no_of_comparisons=5, alphabet=None,
+                    key_space=None, reliability=100.0):
+    """Sentences xored with the same key
+
+    Args:
+        ciphertexts(list): texts xored with the same key
+        lang(string): key in frequencies dict
+        no_of_comparisons(int): used during comparing by frequencies
+        alphabet(string/None): plaintext space
+        key_space(string/None): key space
+        reliability(float): between 0 and 100, used during comparing by frequencies
+
+    Returns:
+        list: sorted (by frequencies) list of tuples (key, list(plaintexts))
+    """
+    if len(ciphertexts) < 2:
+        log.critical_error("Too less ciphertexts")
+
+    min_size = min(map(len, ciphertexts))
+    ciphertexts = map(lambda one: one[:min_size], ciphertexts)
+    log.info("Ciphertexts shrinked to {} bytes".format(min_size))
+
+    pairs = break_repeated_key(''.join(ciphertexts), lang=lang, no_of_comparisons=no_of_comparisons, key_size=min_size,
+                               alphabet=alphabet, key_space=key_space, reliability=reliability)
+
+    res = map(lambda pair: (pair[0], chunks(pair[1], min_size)), pairs)
+    return res

@@ -1,25 +1,13 @@
 #!/usr/bin/env python
 
+import os
+from Block import ecb
+from Block import cbc
+from PublicKey import rsa
 
-class Test(object):
-    def __init__(self):
-        self._text = []
+os.chdir('./Block/')
+ecb.run()
+cbc.run()
 
-    @property
-    def text(self):
-        print 'a'
-        return self._text
-
-    @text.setter
-    def text(self, value):
-        print 'b'
-        print value
-        self._text = value
-
-
-t = Test()
-
-print t.text
-
-t.text.append({'asd':23})
-print t.text
+os.chdir('../PublicKey/')
+rsa.run()

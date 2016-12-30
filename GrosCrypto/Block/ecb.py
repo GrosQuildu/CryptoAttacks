@@ -14,7 +14,7 @@ def encryption_oracle(payload):
     raise NotImplementedError
 
 
-def recognize(cipher, block_size=16):
+def is_ecb(cipher, block_size=16):
     """Check if there are repeated blocks in ciphertext
 
     Args:
@@ -82,7 +82,7 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
         block_size(int)
 
     Returns:
-        int
+        tuple(int,int): prefix_size, suffix_size
     """
     blocks_to_send = 5
     payload = random_char() * (blocks_to_send * block_size)
@@ -129,50 +129,40 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
     return prefix_size, suffix_size
 
 
-def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, secret_size=None, max_payload_length=None, alphabet=None):
+def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, secret_size=None, alphabet=None):
     """Given encryption oracle which produce ecb(prefix || our_input || secret), find secret
-    encryption_oracle function must be implemented
     
     Args:
         encryption_oracle(function)
-        constant(bool): True if prefix have constant length (secret must be constant length)
+        constant(bool): True if prefix have constant length (secret must have constant length)
         block_size(int/None)
         prefix_size(int/None)
         secret_size(int/None)
-        max_payload_length(int/None)
         alphabet(string): plaintext space
     
     Returns:
         secret(string)
     """
-    log.debug("Start decrypt method")
+    log.debug("Start decrypt function")
     if not alphabet:
         alphabet = string.printable
 
     if not block_size:
         block_size = find_block_size(encryption_oracle, constant)
 
-    if not max_payload_length:
-        max_payload_length = 512*block_size
-
-    if max_payload_length < block_size:
-        log.critical_error("Max payload length is smaller than block size")
-
-    if not prefix_size and max_payload_length < block_size*3:
-        log.critical_error("Max payload length is too small to find prefix size (min 3*bock_size)")
-
     if constant:
         log.debug("constant == True")
         if not prefix_size or not secret_size:
             prefix_size, secret_size = find_prefix_suffix_size(encryption_oracle, block_size)
 
-        if max_payload_length - prefix_size < block_size:
-            log.critical_error("Max payload length is smaller than block size + prefix size")
-
         """Start decrypt"""
         secret = ''
         aligned_bytes = random_char() * (block_size - (prefix_size % block_size))
+        if len(aligned_bytes) == block_size:
+            aligned_bytes = ''
         aligned_bytes_suffix = random_char() * (block_size - (secret_size % block_size))
+        if len(aligned_bytes_suffix) == block_size:
+            aligned_bytes_suffix = ''
         block_to_find_position = -1
         controlled_block_position = (prefix_size+len(aligned_bytes)) // block_size
 
@@ -184,20 +174,23 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
             block_to_find = enc_chunks[block_to_find_position]
 
             log.debug("To guess at position {}:".format(block_to_find_position))
-            log.debug(print_chunks(chunks('P'*prefix_size+payload+'S'*secret_size, block_size)))
-            log.debug(print_chunks(enc_chunks))
+            log.debug("Plain: " + print_chunks(chunks('P'*prefix_size+payload+'S'*secret_size, block_size)))
+            log.debug("Encry: " + print_chunks(enc_chunks)+"\n")
 
             for guessed_char in alphabet:
                 payload = aligned_bytes + add_padding(guessed_char + secret, block_size)
                 enc_chunks = chunks(encryption_oracle(payload), block_size)
 
-                log.debug(print_chunks(chunks('P' * prefix_size + payload + 'S' * secret_size, block_size)))
-                log.debug(print_chunks(enc_chunks)+"\n")
+                log.debug("Plain: " + print_chunks(chunks('P' * prefix_size + payload + 'S' * secret_size, block_size)))
+                log.debug("Encry: " + print_chunks(enc_chunks)+"\n")
                 if block_to_find == enc_chunks[controlled_block_position]:
                     secret = guessed_char + secret
                     log.debug("Found char, secret={}".format(repr(secret)))
                     break
             else:
-                log.critical_error("Char not found, try change alphabet. Secret so far: {}".format(secret))
+                log.critical_error("Char not found, try change alphabet. Secret so far: {}".format(repr(secret)))
         log.info("Secret(hex): {}".format(secret.encode('hex')))
         return secret
+    else:
+        log.debug("constant == False")
+

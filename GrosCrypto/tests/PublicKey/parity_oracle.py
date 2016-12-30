@@ -2,7 +2,7 @@
 
 import sys
 
-from GrosCrypto.PublicKey.RSA import RSAKey
+from GrosCrypto.PublicKey.rsa import RSAKey
 from GrosCrypto.Utils import *
 
 key = RSAKey.import_key("private_key_1024.pem")

@@ -81,6 +81,11 @@ def gcd(a, b):
     return a
 
 
+def lcm(a, b):
+    """Lowest common multiple"""
+    return (a*b) / gcd(a, b)
+
+
 def factors(n):
     """Find factors of n
     from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python

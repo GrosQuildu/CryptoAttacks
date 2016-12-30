@@ -19,17 +19,12 @@ def decrypt(data):
     data = data[AES.block_size:]
     aes = AES.new(KEY, AES.MODE_CBC, iv)
     p = aes.decrypt(data)
-    if check_padding(p):
-        return p[:-ord(p[-1])]
-    else:
+    try:
+        p = strip_padding(p, AES.block_size)
+        return p
+    except:
         sys.exit(1)
 
-
-def check_padding(data):
-    padding = data[-1]
-    if data[-ord(padding):] == padding*ord(padding):
-        return True
-    return False
 
 if __name__ == '__main__':
     if len(sys.argv) != 3 or sys.argv[1] not in ['encrypt', 'decrypt']:
