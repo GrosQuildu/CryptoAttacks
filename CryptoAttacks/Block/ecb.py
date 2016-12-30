@@ -1,5 +1,5 @@
-from GrosCrypto.Math import factors
-from GrosCrypto.Utils import *
+from CryptoAttacks.Math import factors
+from CryptoAttacks.Utils import *
 
 
 def encryption_oracle(payload):

@@ -3,8 +3,8 @@
 import os
 import subprocess
 
-from GrosCrypto.PublicKey.rsa import *
-from GrosCrypto.Utils import *
+from CryptoAttacks.PublicKey.rsa import *
+from CryptoAttacks.Utils import *
 
 key_static_2048 = None
 key_static_1024 = None

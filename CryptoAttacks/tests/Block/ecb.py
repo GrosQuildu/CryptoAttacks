@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
 from Crypto.Cipher import AES, DES3
-from GrosCrypto.Block import ecb
-from GrosCrypto.Utils import *
+from CryptoAttacks.Block import ecb
+from CryptoAttacks.Utils import *
 
 
 block_size = AES.block_size

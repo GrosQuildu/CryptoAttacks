@@ -3,7 +3,7 @@
 import sys
 
 from Crypto.Cipher import AES
-from GrosCrypto.Utils import *
+from CryptoAttacks.Utils import *
 
 KEY = 'asdf'*4
 

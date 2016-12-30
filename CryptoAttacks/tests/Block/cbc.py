@@ -3,8 +3,8 @@
 import subprocess
 
 from Crypto.Cipher import AES
-from GrosCrypto.Block import cbc
-from GrosCrypto.Utils import *
+from CryptoAttacks.Block import cbc
+from CryptoAttacks.Utils import *
 
 block_size = AES.block_size
 blocks_with_correct_padding = subprocess.check_output(['./cbc_oracles.py', 'encrypt', ('A'*(AES.block_size+2)).encode('hex')]).strip().decode('hex')[-2*AES.block_size:]

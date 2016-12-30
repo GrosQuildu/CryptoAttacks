@@ -1,5 +1,5 @@
 import gmpy2
-from GrosCrypto.Utils import log
+from CryptoAttacks.Utils import log
 import operator
 
 

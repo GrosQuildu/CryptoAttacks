@@ -2,8 +2,8 @@ import itertools
 from copy import deepcopy
 
 from Crypto.PublicKey import RSA as PyRSA
-from GrosCrypto.Math import *
-from GrosCrypto.Utils import *
+from CryptoAttacks.Math import *
+from CryptoAttacks.Utils import *
 
 
 class RSAKey(PyRSA._RSAobj):

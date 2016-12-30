@@ -4,8 +4,8 @@ import re
 import sys
 from collections import defaultdict
 
-from GrosCrypto.Math import *
-from GrosCrypto.Utils import *
+from CryptoAttacks.Math import *
+from CryptoAttacks.Utils import *
 
 frequencies = {
     'Swedish': [('e', 10.149), ('a', 9.383), ('n', 8.542), ('r', 8.431), ('t', 7.691), ('s', 6.59), ('i', 5.817),

@@ -1,4 +1,4 @@
-from GrosCrypto.Utils import *
+from CryptoAttacks.Utils import *
 
 
 def padding_oracle(payload, iv):
