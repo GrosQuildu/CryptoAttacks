@@ -8,14 +8,25 @@ from CryptoAttacks.Utils import *
 
 class RSAKey(PyRSA._RSAobj):
     def __init__(self):
-        # log.critical_error("Create RSAKey via generate, construct or import_key method")
-        self.texts = []  # list of dict [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
+        """
+        self.texts: list of dict [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
+        self.identifier: id(self), filename or custom
+        """
+        self.texts = []
         self.identifier = ''
 
     def encrypt(self, plaintext):
+        """Raw encryption
+        Args: plaintext(int)
+        Returns: pow(plaintext,e,n)
+        """
         return pow(plaintext, self.e, self.n)
 
     def decrypt(self, ciphertext):
+        """Raw decryption
+        Args: ciphertext
+        Returns: pow(ciphertext, d, n)
+        """
         return pow(ciphertext, self.d, self.n)
 
     def copy(self, identifier=''):
@@ -28,20 +39,31 @@ class RSAKey(PyRSA._RSAobj):
         return tmp
 
     def publickey(self, identifier=''):
+        """Extract public key"""
         tmp = RSAKey.construct(self.n, self.e, identifier=identifier)
         tmp.texts = deepcopy(self.texts)
         return tmp
 
     @staticmethod
-    def generate(*args, **kwargs):
+    def generate(identifier=None, *args, **kwargs):
+        """
+        identifier(string/None): unique identifier of key
+        bits(int): key size
+        e(int): public exponent
+        randfunc(function)
+        progress_func(function)
+        """
         tmp_key = PyRSA.generate(*args, **kwargs)
         tmp_key.__class__ = RSAKey
         tmp_key.__init__()
-        tmp_key.identifier = id(tmp_key)
+        if identifier:
+            tmp_key.identifier = identifier
+        else:
+            tmp_key.identifier = id(tmp_key)
         return tmp_key
 
     @staticmethod
-    def construct(n, e=0x10001, d=None, p=None, q=None, identifier=''):
+    def construct(n, e=0x10001, d=None, p=None, q=None, identifier=None):
         """Construct key from tuple
 
         Args:
@@ -50,7 +72,7 @@ class RSAKey(PyRSA._RSAobj):
             d(long): Private exponent (d). If key is private, one of d,p or q must be given
             p(long): First factor of n
             q(long): Second factor of n
-            identifier(string): unique identifier of key
+            identifier(string/None): unique identifier of key
         Returns:
             RSAKey
         """
@@ -72,18 +94,22 @@ class RSAKey(PyRSA._RSAobj):
         return tmp_key
 
     @staticmethod
-    def import_key(filename, *args, **kwargs):
+    def import_key(filename, identifier=None, *args, **kwargs):
         """Import key from file
 
         Args:
             filename(string): use it as key's id
+            identifier(string/None): unique identifier of key
         Returns:
             RSAKey
         """
         tmp_key = PyRSA.importKey(open(filename).read(), *args, **kwargs)
         tmp_key.__class__ = RSAKey
         tmp_key.__init__()
-        tmp_key.identifier = filename
+        if identifier:
+            tmp_key.identifier = identifier
+        else:
+            tmp_key.identifier = filename
         return tmp_key
 
 
@@ -142,7 +168,8 @@ def hastad(keys):
     plaintext can be efficiently recovered
 
     Args:
-        keys(list):  RSAKeys, all with same public exponent e, len(keys) >= e, all with at least one ciphertext
+        keys(list): RSAKeys, all with same public exponent e, len(keys) >= e,
+                    every key with at least one ciphertext
 
     Returns:
         bool/string: False on failure, recovered plaintext otherwise

@@ -129,7 +129,8 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
     return prefix_size, suffix_size
 
 
-def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, secret_size=None, alphabet=None):
+def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, secret_size=None,
+            alphabet=None):
     """Given encryption oracle which produce ecb(prefix || our_input || secret), find secret
     
     Args:

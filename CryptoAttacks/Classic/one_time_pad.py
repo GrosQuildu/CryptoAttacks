@@ -354,7 +354,8 @@ def guess_key_size(ciphertext, max_key_size=40):
          max_key_size(int)
 
     Returns:
-        list: sorted list of tuples (key_size, probability), note that most probable key size not necessary have the largest probability
+        list: sorted list of tuples (key_size, probability),
+        note that most probable key size not necessary have the largest probability
     """
     if not max_key_size:
         max_key_size = len(ciphertext)/4
@@ -409,8 +410,8 @@ def guess_key_size(ciphertext, max_key_size=40):
     return result
 
 
-def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size=None, max_key_size=40, alphabet=None,
-                       key_space=None, reliability=100.0):
+def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size=None, max_key_size=40,
+                       alphabet=None, key_space=None, reliability=100.0):
     """Short key encrypted with long plaintext
 
     Args:
