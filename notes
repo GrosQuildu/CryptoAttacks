@@ -1,1 +1,0 @@
-export SAGE_PATH=$SAGE_PATH:`pwd`

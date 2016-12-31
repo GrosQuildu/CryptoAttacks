@@ -29,12 +29,35 @@ def decryption_oracle(payload, iv):
     raise NotImplementedError
 
 
-def decrypt(padding_oracle, ciphertext, iv=None, block_size=16, is_correct=True, amount=0, known_plaintext=None, async=False):
+def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
+    """Check if padding or decryption oracle works"""
+    if not padding_oracle and not decryption_oracle:
+        log.critical_error("Give padding_oracle and/or decryption_oracle functions")
+
+    if decryption_oracle:
+        try:
+            decryption_oracle(payload='B' * block_size, iv='A' * block_size)
+        except NotImplementedError:
+            log.critical_error("decryption_oracle not implemented")
+        except Exception, e:
+            log.critical_error("Error in first call to decryption_oracle: {}".format(e.message))
+
+    if padding_oracle:
+        try:
+            padding_oracle(payload='B'*block_size, iv='A'*block_size)
+        except NotImplementedError:
+            log.critical_error("padding_oracle not implemented")
+        except Exception, e:
+            log.critical_error("Error in first call to padding_oracle: {}".format(e.message))
+
+
+def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, block_size=16, is_correct=True, amount=0, known_plaintext=None, async=False):
     """Decrypt ciphertext using padding oracle
 
     Args:
-        padding_oracle(function)
         ciphertext(string): to decrypt
+        padding_oracle(function/None)
+        decryption_oracle(function/None)
         iv(string): if not specified, first block of ciphertext is treated as iv
         block_size(int)
         is_correct(bool): set if ciphertext will decrypt to something with correct padding
@@ -45,13 +68,14 @@ def decrypt(padding_oracle, ciphertext, iv=None, block_size=16, is_correct=True,
     Returns:
         plaintext(string): with padding
     """
+    _check_oracles(padding_oracle=padding_oracle, decryption_oracle=decryption_oracle, block_size=block_size)
 
-    try:
-        padding_oracle(payload='B'*block_size, iv='A'*block_size)
-    except NotImplementedError:
-        log.critical_error("padding oracle not implemented")
-    except Exception, e:
-        log.critical_error("Error in first call to padding_oracle: {}".format(e.message))
+    if decryption_oracle:
+        plaintext = decryption_oracle(ciphertext[block_size:], iv=ciphertext[:block_size])
+        if amount == 0:
+            return plaintext
+        else:
+            return plaintext[-(amount*block_size):]
 
     if block_size % 8 != 0:
         log.critical_error("Incorrect block size: {}".format(block_size))
@@ -64,7 +88,6 @@ def decrypt(padding_oracle, ciphertext, iv=None, block_size=16, is_correct=True,
 
     # prepare blocks
     blocks = chunks(ciphertext, block_size)
-    resp = None
     if iv:
         if len(iv) % block_size != 0:
             log.critical_error("Incorrect iv length: {}".format(len(iv)))
@@ -203,8 +226,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
     Returns:
         fake_ciphertext(string): fake ciphertext that will decrypt to new_plaintext
     """
-    if not padding_oracle and not decryption_oracle:
-        log.critical_error("Give padding_oracle and/or decryption_oracle functions")
+    _check_oracles(padding_oracle=padding_oracle, decryption_oracle=decryption_oracle, block_size=block_size)
 
     if block_size % 8 != 0:
         log.critical_error("Incorrect block size: {}".format(block_size))
@@ -247,19 +269,16 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         log.info("Block no. {}".format(count_block))
 
         ciphertext_to_decrypt = ''.join(new_ct_blocks[:count_block + 1])
-        if decryption_oracle:
-                original_plaintext = decryption_oracle(ciphertext_to_decrypt[block_size:], iv=ciphertext_to_decrypt[:block_size])
-                original_plaintext = original_plaintext[-block_size:]
-        else:  # we have padding_oracle
-            if original_plaintext is None and original_ciphertext is None:
-                original_plaintext = decrypt(padding_oracle, ciphertext_to_decrypt, block_size=block_size, amount=1,
-                                             is_correct=False)
-            elif original_plaintext and original_ciphertext:
-                original_plaintext = decrypt(padding_oracle, ciphertext_to_decrypt, block_size=block_size, amount=1,
-                                             is_correct=True, known_plaintext=original_plaintext)
-            else:
-                original_plaintext = decrypt(padding_oracle, ciphertext_to_decrypt, block_size=block_size, amount=1,
-                                             is_correct=True)
+
+        if original_plaintext is None and original_ciphertext is None:
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
+                                         block_size=block_size, amount=1, is_correct=False)
+        elif original_plaintext and original_ciphertext:
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
+                                         block_size=block_size, amount=1, is_correct=True, known_plaintext=original_plaintext)
+        else:
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
+                                         block_size=block_size, amount=1, is_correct=True)
 
         log.info("Set block no. {}".format(count_block))
         new_ct_blocks[count_block - 1] = xor(blocks[count_block - 1], original_plaintext,
@@ -293,3 +312,43 @@ def bit_flipping(ciphertext, plaintext, wanted, block_size=16):
         log.critical_error("Incorrect wanted_last_block size")
 
     return xor(ciphertext[:block_size], plaintext, wanted) + ciphertext[block_size:]
+
+
+def iv_as_key(padding_oracle=None, decryption_oracle=None, ciphertext=None, plaintext=None, block_size=16):
+    """If iv is used as key, we can recover it using decryption (or padding) oracle
+
+    Args:
+        padding_oracle(function/None)
+        decryption_oracle(function/None)
+        ciphertext(string/None): first block must be AES.encrypt(iv xor whatever), first block repeated at least once, plaintext must be given
+        plaintext(string/None): with padding
+        block_size(int)
+
+    Returns
+        string: key (==iv)
+    """
+    # find positions of the same blocks
+    appended = False
+    ciphertext = chunks(ciphertext, block_size)
+    try:
+        position_second = ciphertext.index(ciphertext[0], 1)
+    except:
+        appended = True
+        log.debug("Append first block to ciphertext")
+        ciphertext.append(ciphertext[0])
+        position_second = len(ciphertext) - 1
+    log.debug("Position of the same block as the first is {}".format(position_second))
+
+    if not plaintext or appended:
+        _check_oracles(padding_oracle=padding_oracle, decryption_oracle=decryption_oracle, block_size=block_size)
+
+        plaintext = decrypt(ciphertext[0] + ciphertext[position_second], padding_oracle=padding_oracle,
+                            decryption_oracle=decryption_oracle, iv='A'*block_size,  # iv will be never used anyway
+                            block_size=block_size, is_correct=False, amount=2)
+        plaintext = chunks(plaintext, block_size)
+    else:
+        plaintext = chunks(plaintext, block_size)
+        plaintext = [plaintext[0], plaintext[position_second]]
+
+    key = xor(plaintext[0], ciphertext[position_second-1], plaintext[1])
+    return key
