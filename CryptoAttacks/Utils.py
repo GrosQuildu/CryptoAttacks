@@ -4,6 +4,7 @@ import random
 import string
 import gmpy2
 import math
+from numbers import Number
 
 # _ord = ord
 # _chr = chr
@@ -107,6 +108,9 @@ def b2i(number_bytes, endian='big'):
     if endian not in ['little', 'big']:
         log.critical_error("Bad endianness, must be big or little")
 
+    if isinstance(number_bytes, Number):
+        return int(number_bytes)
+
     if endian == 'little':
         number_bytes = number_bytes[::-1]
     return int(number_bytes.encode('hex'), 16)
@@ -138,6 +142,9 @@ def i2b(number, size=0, endian='big', signed=False):
 
     if number < 0 and not signed:
         log.critical_error("Negative number with signed==False")
+
+    if not isinstance(number, Number):
+        return number
 
     if signed and number < 0:
         number += (1 << size)

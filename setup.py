@@ -9,4 +9,4 @@ setup(name='CryptoAttacks',
       license='MIT',
       packages=['CryptoAttacks'],
       zip_safe=False,
-      install_requires=['pycrypto'])
+      install_requires=['pycrypto', 'gmpy2'])

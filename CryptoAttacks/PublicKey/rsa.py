@@ -44,6 +44,22 @@ class RSAKey(PyRSA._RSAobj):
         tmp.texts = deepcopy(self.texts)
         return tmp
 
+    def add_ciphertext(self, ciphertext):
+        self.texts.append({'cipher': ciphertext})
+
+    def add_plaintext(self, plaintext):
+        self.texts.append({'plain': plaintext})
+
+    def add_text_pair(self, ciphertext=None, plaintext=None):
+        if not ciphertext and not plaintext:
+            log.error("Can't add None ciphertext and None plaintext")
+        tmp = {}
+        if ciphertext:
+            tmp['cipher'] = ciphertext
+        if plaintext:
+            tmp['plain'] = plaintext
+        self.texts.append(tmp)
+
     @staticmethod
     def generate(identifier=None, *args, **kwargs):
         """
@@ -83,6 +99,7 @@ class RSAKey(PyRSA._RSAobj):
             tup = (n, e, d)
         else:
             tup = (n, e)
+        tup = map(long, tup)
 
         tmp_key = PyRSA.construct(tup)
         tmp_key.__class__ = RSAKey
@@ -111,6 +128,35 @@ class RSAKey(PyRSA._RSAobj):
         else:
             tmp_key.identifier = filename
         return tmp_key
+
+
+def small_e_msg(key, max_times=100):
+    """If both e and plaintext are small, ciphertext may exceed modulus a little
+
+    Args:
+        key(RSAKey): with small e, at least one ciphertext
+        max_times(int): how many times plaintext**e exceeded modulus
+
+    Returns:
+        list: recovered plaintexts
+        update key texts with found plaintexts
+    """
+    recovered = []
+    for text_no in range(len(key.texts)):
+        if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
+            cipher = key.texts[text_no]['cipher']
+            log.debug("Find msg for ciphertext {}".format(cipher))
+            times = 0
+            for k in range(max_times):
+                msg, is_correct = gmpy2.iroot(cipher+times, key.e)
+                if is_correct:
+                    msg = long(msg)
+                    log.success("Found msg: {}, times=={}".format(i2b(msg), times))
+                    key.texts[text_no]['plain'] = msg
+                    recovered.append(msg)
+                    break
+                times += key.n
+    return recovered
 
 
 def common_primes(keys):
@@ -145,6 +191,7 @@ def wiener(key):
 
     Returns:
         bool/RSAKey: False if didn't break key, private key otherwise
+        update keys texts with found plaintext
     """
     en_fractions = continued_fractions(key.e, key.n)
     for k, d in convergents(en_fractions):
@@ -169,7 +216,7 @@ def hastad(keys):
 
     Args:
         keys(list): RSAKeys, all with same public exponent e, len(keys) >= e,
-                    every key with at least one ciphertext
+                    every key with only one ciphertext
 
     Returns:
         bool/string: False on failure, recovered plaintext otherwise
@@ -178,24 +225,50 @@ def hastad(keys):
     if len(keys) < e:
         log.critical_error("Not enough keys, e={}".format(e))
 
-    ciphertexts, modules = [], []
     for key in keys:
+        if len(key.texts) != 1:
+            log.critical_error("Only one ciphertext per key allowed (key=={})".format(key.identifier))
+        if 'plain' in key.texts[0]:
+            log.critical_error("key {} have plaintext already".format(key.identifier))
+        if 'cipher' not in key.texts[0]:
+            log.critical_error("key {} doesn't have ciphertext".format(key.identifier))
+
+    # prepare ciphertexts and correct_keys lists
+    ciphertexts, modules, correct_keys = [], [], []
+    for key in keys:
+        # get only first ciphertext (if exists)
         if key.n not in modules and key.texts[0]['cipher'] not in ciphertexts:
             if key.e == e:
                 modules.append(key.n)
+                correct_keys.append(key)
                 ciphertexts.append(key.texts[0]['cipher'])
             else:
                 log.info("Key {} have different e(={})".format(key.identifier, key.e))
 
+    # check if we have enough ciphertexts
     if len(modules) < e:
-        log.critical_error("Not enough keys with unique modulus and ciphertext, e={}, len(modules)=".format(e, len(modules)))
-    if len(modules) > e:
-        log.info("Number of modules/ciphertexts larger than e")
+        log.info("Not enough keys with unique modulus and ciphertext, e={}, len(modules)={}".format(e, len(modules)))
+        log.info("Checking for simple roots (small_e_msg)")
+        for one_key in correct_keys:
+            recovered_plaintexts = small_e_msg(one_key)
+            if len(recovered_plaintexts) > 0:
+                log.success("Found plaintext: {}".format(recovered_plaintexts[0]))
+                return recovered_plaintexts[0]
 
+    if len(modules) > e:
+        log.debug("Number of modules/ciphertexts larger than e")
+        modules = modules[:e]
+        ciphertexts = ciphertexts[:e]
+
+    # actual Hastad
     result = crt(ciphertexts, modules)
     plaintext, correct = gmpy2.iroot(result, e)
     if correct:
-        return long(plaintext)
+        plaintext = long(plaintext)
+        log.success("Found plaintext: {}".format(plaintext))
+        for one_key in correct_keys:
+            one_key.texts[0]['plain'] = plaintext
+        return plaintext
     else:
         log.debug("Plaintext wasn't {}-th root")
         log.debug("result (from crt) = {}".format(e, result))
