@@ -61,21 +61,21 @@ class RSAKey(PyRSA._RSAobj):
         self.texts.append(tmp)
 
     @staticmethod
-    def generate(identifier=None, *args, **kwargs):
+    def generate(bits, e=0x10001, randfunc=None, progress_func=None, identifier=None):
         """
-        identifier(string/None): unique identifier of key
         bits(int): key size
         e(int): public exponent
         randfunc(function)
         progress_func(function)
+        identifier(string/None): unique identifier of key
         """
-        tmp_key = PyRSA.generate(*args, **kwargs)
+        tmp_key = PyRSA.generate(bits, e=e, randfunc=randfunc, progress_func=progress_func)
         tmp_key.__class__ = RSAKey
         tmp_key.__init__()
         if identifier:
             tmp_key.identifier = identifier
         else:
-            tmp_key.identifier = id(tmp_key)
+            tmp_key.identifier = str(id(tmp_key))
         return tmp_key
 
     @staticmethod
@@ -107,7 +107,7 @@ class RSAKey(PyRSA._RSAobj):
         if identifier:
             tmp_key.identifier = identifier
         else:
-            tmp_key.identifier = id(tmp_key)
+            tmp_key.identifier = str(id(tmp_key))
         return tmp_key
 
     @staticmethod
@@ -138,7 +138,7 @@ def small_e_msg(key, max_times=100):
         max_times(int): how many times plaintext**e exceeded modulus
 
     Returns:
-        list: recovered plaintexts
+        dict: recovered plaintexts
         update key texts with found plaintexts
     """
     recovered = []
@@ -153,7 +153,7 @@ def small_e_msg(key, max_times=100):
                     msg = long(msg)
                     log.success("Found msg: {}, times=={}".format(i2b(msg), times))
                     key.texts[text_no]['plain'] = msg
-                    recovered.append(msg)
+                    recovered[text_no] = msg
                     break
                 times += key.n
     return recovered
@@ -173,12 +173,14 @@ def common_primes(keys):
         prime = gmpy2.gcd(pair[0].n, pair[1].n)
         if prime != 1:
             log.info("Found common prime in: {}, {}".format(pair[0].identifier, pair[1].identifier))
-            for x in xrange(2):
-                if pair[x] not in priv_keys:
-                    d = long(gmpy2.invert(pair[x].e, (prime - 1) * (pair[x].n/prime - 1)))
-                    priv_keys.append(RSAKey.construct(long(pair[x].n), long(pair[x].e), long(d), identifier=pair[x].identifier))
+            for key_no in xrange(2):
+                if pair[key_no] not in priv_keys:
+                    d = long(gmpy2.invert(pair[key_no].e, (prime - 1) * (pair[key_no].n/prime - 1)))
+                    new_key = RSAKey.construct(long(pair[key_no].n), long(pair[key_no].e), long(d), identifier=pair[key_no].identifier+'-private')
+                    new_key.texts = pair[key_no].texts[:]
+                    priv_keys.append(new_key)
                 else:
-                    log.debug("Key {} already in priv_keys".format(pair[x].identifier))
+                    log.debug("Key {} already in priv_keys".format(pair[key_no].identifier))
     return priv_keys
 
 
@@ -191,7 +193,6 @@ def wiener(key):
 
     Returns:
         bool/RSAKey: False if didn't break key, private key otherwise
-        update keys texts with found plaintext
     """
     en_fractions = continued_fractions(key.e, key.n)
     for k, d in convergents(en_fractions):
@@ -204,8 +205,9 @@ def wiener(key):
                 sqrt_delta = gmpy2.isqrt(delta)
                 if sqrt_delta*sqrt_delta == delta and sqrt_delta % 2 == 0:
                     log.debug("Found private key (d={}) for {}".format(d, key.identifier))
-                    key = RSAKey.construct(long(key.n), long(key.e), long(d), identifier=key.identifier)
-                    return key
+                    new_key = RSAKey.construct(long(key.n), long(key.e), long(d), identifier=key.identifier+'-private')
+                    new_key.texts = key.texts[:]
+                    return new_key
     return False
 
 
@@ -220,6 +222,7 @@ def hastad(keys):
 
     Returns:
         bool/string: False on failure, recovered plaintext otherwise
+        update keys texts
     """
     e = keys[0].e
     if len(keys) < e:
@@ -313,8 +316,9 @@ def faulty(key, padding=None):
         p = gmpy2.gcd(pair[0] - pair[1], key.n)
         if p != 1 and p != key.n:
             log.debug("Found p={}".format(p))
-            key = RSAKey.construct(key.n, key.e, p=long(p))
-            return key
+            new_key = RSAKey.construct(key.n, key.e, p=long(p), identifier=key.identifier+'-private')
+            new_key.texts = key.texts[:]
+            return new_key
     return False
 
 
@@ -339,33 +343,86 @@ def parity(parity_oracle, key):
         key(RSAKey): contains ciphertexts to decrypt
 
     Returns:
-        list:  decrypted ciphertexts
+        dict: decrypted ciphertexts
+        update key texts
     """
     try:
         parity_oracle(1)
     except NotImplementedError:
         log.critical_error("Parity oracle not implemented")
 
-    for cipher in [pair['cipher'] for pair in key.texts if 'plain' not in pair and 'cipher' in pair]:
-        log.info("Decrypting {}".format(cipher))
-        two_encrypted = key.encrypt(2)
+    recovered = {}
+    for text_no in range(len(key.texts)):
+        if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
+            cipher = key.texts[text_no]['cipher']
+            log.info("Decrypting {}".format(cipher))
+            two_encrypted = key.encrypt(2)
 
-        counter = lower_bound = numerator = 0
-        upper_bound = key.n
-        denominator = 1
-        while lower_bound+1 < upper_bound:
-            cipher = (two_encrypted * cipher) % key.n
-            denominator *= 2
-            numerator *= 2
-            counter += 1
+            counter = lower_bound = numerator = 0
+            upper_bound = key.n
+            denominator = 1
+            while lower_bound+1 < upper_bound:
+                cipher = (two_encrypted * cipher) % key.n
+                denominator *= 2
+                numerator *= 2
+                counter += 1
 
-            is_odd = parity_oracle(cipher)
-            if is_odd:  # plaintext > n/(2**counter)
-                numerator += 1
-            lower_bound = (key.n * numerator) / denominator
-            upper_bound = (key.n * (numerator+1)) / denominator
+                is_odd = parity_oracle(cipher)
+                if is_odd:  # plaintext > n/(2**counter)
+                    numerator += 1
+                lower_bound = (key.n * numerator) / denominator
+                upper_bound = (key.n * (numerator+1)) / denominator
 
-            log.debug("{} {} [{}, {}]".format(counter, is_odd, long(lower_bound), long(upper_bound)))
-            log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator+1, denominator))
-        log.success("Decrypted: {}".format(i2b(upper_bound)))
-        return upper_bound
+                log.debug("{} {} [{}, {}]".format(counter, is_odd, long(lower_bound), long(upper_bound)))
+                log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator+1, denominator))
+            log.success("Decrypted: {}".format(i2b(upper_bound)))
+            key.texts[text_no]['plain'] = upper_bound
+            recovered[text_no] = upper_bound
+    return recovered
+
+
+def blinding(key, signing_oracle=None, decryption_oracle=None):
+    """Perform signature/ciphertext blinding attack
+
+    Args:
+        key(RSAKey): with at least one plaintext(to sign) or ciphertext(to decrypt)
+        signing_oracle(function)
+        decryption_oracle(function)
+
+    Returns:
+        dict: keys: positions, values: signatures or plaintexts
+        update key texts
+    """
+    if not signing_oracle and not decryption_oracle:
+        log.critical_error("Give one of signing_oracle or decryption_oracle")
+    if signing_oracle and decryption_oracle:
+        log.critical_error("Give only one of signing_oracle or decryption_oracle")
+
+    recovered = {}
+    if signing_oracle:
+        for text_no in range(len(key.texts)):
+            if 'plain' in key.texts[text_no] and 'cipher' not in key.texts[text_no]:
+                blind = random.randint(2, 100)
+                blind = key.encrypt(blind)
+                blinded_plaintext = (key.texts[text_no]['plain'] * blind) % key.n
+                blinded_signature = signing_oracle(blinded_plaintext)
+                if not blinded_signature:
+                    log.critical_error("Error during call to signing_oracle({})".format(blinded_plaintext))
+                signature = (invmod(blind, key.n) * blinded_signature ) % key.n
+                key.texts[text_no]['cipher'] = signature
+                recovered[text_no] = signature
+
+    if decryption_oracle:
+        for text_no in range(len(key.texts)):
+            if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
+                blind = random.randint(2, 100)
+                blind = key.encrypt(blind)
+                blinded_ciphertext = (key.texts[text_no]['cipher'] * blind) % key.n
+                blinded_plaintext = signing_oracle(blinded_ciphertext)
+                if not blinded_plaintext:
+                    log.critical_error("Error during call to decryption_oracle({})".format(blinded_plaintext))
+                plaintext = (invmod(blind, key.n) * blinded_plaintext ) % key.n
+                key.texts[text_no]['cipher'] = plaintext
+                recovered[text_no] = plaintext
+
+    return recovered

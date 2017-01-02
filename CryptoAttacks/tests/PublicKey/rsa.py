@@ -94,7 +94,7 @@ def test_faulty():
 
 def parity_oracle(ciphertext):
     ciphertext = i2b(ciphertext)
-    message = subprocess.check_output(["./parity_oracle.py", "decrypt", ciphertext.encode('hex')]).strip().decode('hex')
+    message = subprocess.check_output(["./rsa_oracles.py", "decrypt", ciphertext.encode('hex')]).strip().decode('hex')
     if message == '1':
         return 1
     return 0
@@ -102,12 +102,16 @@ def parity_oracle(ciphertext):
 
 def test_parity():
     print "Test: parity"
-    plaintext = "Some plaintext " + random_str(10) + " anything can it be"
-    ciphertext = subprocess.check_output(["./parity_oracle.py", "encrypt", plaintext.encode('hex')]).strip().decode('hex')
+    plaintext1 = "Some plaintext " + random_str(10) + " anything can it be"
+    plaintext2 = "Some plaintext " + random_str(10) + " anything can it be2"
+    ciphertext1 = subprocess.check_output(["./rsa_oracles.py", "encrypt", plaintext1.encode('hex')]).strip().decode('hex')
+    ciphertext2 = subprocess.check_output(["./rsa_oracles.py", "encrypt", plaintext2.encode('hex')]).strip().decode('hex')
 
-    key_static_1024.texts.append({'cipher': b2i(ciphertext)})
-    msg_recovered = parity(parity_oracle, key_static_1024)
-    assert msg_recovered == b2i(plaintext)
+    key_static_1024.texts.append({'cipher': b2i(ciphertext1)})
+    key_static_1024.texts.append({'cipher': b2i(ciphertext2)})
+    msgs_recovered = parity(parity_oracle, key_static_1024)
+    assert msgs_recovered[0] == b2i(plaintext1)
+    assert msgs_recovered[1] == b2i(plaintext2)
     key_static_1024.texts = []
 
 
