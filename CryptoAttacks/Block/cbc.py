@@ -332,7 +332,7 @@ def iv_as_key(padding_oracle=None, decryption_oracle=None, ciphertext=None, plai
         plaintext(string/None): with padding
         block_size(int)
 
-    Returns
+    Returns:
         string: key (==iv)
     """
     # find positions of the same blocks

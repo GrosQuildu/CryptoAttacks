@@ -74,16 +74,38 @@ def euler_phi(factors):
         return reduce(operator.mul, [p-1 for p in factors])
 
 
-def gcd(a, b):
+def gcd(*args):
     """Greatest common divisor"""
-    while b:
-        a, b = b, a % b
-    return a
+    if len(args) < 2:
+        log.critical_error("Give at least two values")
+
+    if len(args) == 2:
+        a, b = args
+        while b:
+            a, b = b, a % b
+        return a
+    else:
+        d = 0
+        for number in args:
+            d = gcd(d, number)
+            if d == 1:
+                break
+        return d
 
 
-def lcm(a, b):
+def lcm(*args):
     """Lowest common multiple"""
-    return (a*b) / gcd(a, b)
+    if len(args) < 2:
+        log.critical_error("Give at least two values")
+
+    if len(args) == 2:
+        a, b = args
+        return (a*b) / gcd(a, b)
+    else:
+        l = 1
+        for number in args:
+            l = lcm(l, number)
+        return l
 
 
 def factors(n):
@@ -91,3 +113,37 @@ def factors(n):
     from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python
     """
     return set(reduce(list.__add__, ([i, n//i] for i in range(2, int(n**0.5) + 1) if n % i == 0)))
+
+
+def egcd(*args):
+    """Extended Euclidean algorithm"""
+    if len(args) < 2:
+        log.critical_error("Give at least two values")
+
+    if len(args) == 2:
+        a, b = args
+        s0, t0, s1, t1 = 1, 0, 0, 1
+        while b:
+            q, a, b = a//b, b, a%b
+            s0, s1 = s1, s0 - q*s1
+            t0, t1 = t1, t0 - q*t1
+        return a, s0, t0
+    else:
+        d, s, t = egcd(args[0], args[1])
+        coefficients = [s, t]
+        for i in range(2, len(args)):
+            d, s, t = egcd(d, args[i])
+            for j in range(len(coefficients)):
+                coefficients[j] *= s
+            coefficients.append(t)
+        coefficients.insert(0, d)
+        return coefficients
+
+
+def invmod(a, n):
+    """Modular inverse. a*invmod(a) == 1 (mod n)"""
+    d, s, t = egcd(a, n)
+    if d != 1:
+        raise ValueError("Modular inverse doesn't exists ({}**(-1) % {})".format(a, n))
+    return s % n
+

@@ -3,6 +3,7 @@
 import random
 import string
 import gmpy2
+import math
 
 # _ord = ord
 # _chr = chr
@@ -65,7 +66,7 @@ class Log(object):
             print("[-]" + str(a))
 
     def critical_error(self, a):
-        raise Exception("[-]" + str(a))
+        raise Exception(str(a))
 log = Log()
 
 
@@ -93,15 +94,64 @@ def i2h(a):
     return hex(a)[2:].strip('L')
 
 
-def b2i(a):
-    """Decode bytes to int"""
-    return int(a.encode('hex'), 16)
+def b2i(number_bytes, endian='big'):
+    """Unpack bytes into int
+
+    Args:
+        number_bytes(int)
+        endian(string): big/little
+
+    Returns:
+        int
+    """
+    if endian not in ['little', 'big']:
+        log.critical_error("Bad endianness, must be big or little")
+
+    if endian == 'little':
+        number_bytes = number_bytes[::-1]
+    return int(number_bytes.encode('hex'), 16)
 
 
-def i2b(a):
-    """Encode int to bytes"""
-    a = hex(a)[2:].strip('L')
-    return ('0'*(len(a) & 1) + a).decode('hex')
+def i2b(number, size=0, endian='big', signed=False):
+    """Pack int to bytes
+
+    Args:
+        number(int)
+        size(int): minimum size in bits, 0 if whatever it takes
+        endian(string): big/little
+        signed(bool): pack as two's complement if True (size must be given)
+
+    Returns:
+        string
+    """
+    if endian not in ['little', 'big']:
+        log.critical_error("Bad endianness, must be big or little")
+
+    if type(signed) != bool:
+        log.critical_error("Bad sign, must be True or False")
+
+    if size < 0:
+        log.critical_error("Bad size, must be >= 0")
+
+    if not size and signed:
+        log.critical_error("Can't do signed packing without size")
+
+    if number < 0 and not signed:
+        log.critical_error("Negative number with signed==False")
+
+    if signed and number < 0:
+        number += (1 << size)
+
+    number_bytes = ''
+    while number:
+        number_bytes += chr(number & 0xff)
+        number >>= 8
+
+    number_bytes += '\x00'*(int(math.ceil(size/8.0))-len(number_bytes))
+
+    if endian == 'big':
+        return number_bytes[::-1]
+    return number_bytes
 
 
 def is_printable(a, alphabet=string.printable, reliability=100.0):
@@ -142,11 +192,13 @@ def xor(*args, **kwargs):
 
 
 def add_padding(data, block_size=16):
+    """add PKCS#7 padding"""
     size = block_size - (len(data)%block_size)
     return data+chr(size)*size
 
 
 def strip_padding(data, block_size=16):
+    """strip PKCS#7 padding"""
     padding = ord(data[-1])
     if padding == 0 or padding > block_size or data[-padding:] != chr(padding)*padding:
         raise Exception("Invalid padding")
