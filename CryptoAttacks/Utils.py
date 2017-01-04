@@ -82,8 +82,11 @@ def h2b(a):
     a = a.strip()
     try:
         return a.decode('hex')
-    except:
-        return ('0'+a).decode('hex')
+    except TypeError:
+        try:
+            return ('0'+a).decode('hex')
+        except Exception, e:
+            print e
 
 
 def h2i(a):
@@ -229,7 +232,7 @@ def add_rsa_signature_padding(data, size=1024, hash_function='sha1'):
     padded = hash_asn1[hash_function] + hash_data
     padded = '\xff'*(size//8 - len(padded) - 2)
     padded = "\x00\x01" + padded
-    return padded
+    return padded + data
 
 
 def hamming_distance(a, b):
@@ -245,7 +248,8 @@ def print_chunks(data, delim=' | '):
 
 
 def random_str(length):
-    return ''.join([string.printable[random.randint(0, len(string.printable)-1)] for x in xrange(length)])
+    alphabet = string.printable[:-5]
+    return ''.join([alphabet [random.randint(0, len(alphabet )-1)] for x in xrange(length)])
 
 
 def random_char():
