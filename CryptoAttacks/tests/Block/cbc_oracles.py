@@ -31,6 +31,6 @@ if __name__ == '__main__':
         print "Usage: {} encrypt|decrypt data".format(sys.argv[0])
         sys.exit(1)
     if sys.argv[1] == 'encrypt':
-        print encrypt(sys.argv[2].decode('hex')).encode('hex')
+        print b2h(encrypt(h2b(sys.argv[2])))
     else:
-        print decrypt(sys.argv[2].decode('hex')).encode('hex')
+        print b2h(decrypt(h2b(sys.argv[2])))

@@ -34,7 +34,7 @@ def merkle_damgard(data, initial_state, compression_function):
     data_chunks = chunks(data, 64)
     log.debug("Start merkle-damgard, chunks are: {}".format(data_chunks))
     for chunk in data_chunks:
-        log.debug("Process chunk: {} with state: {}".format(chunk.encode('hex'), state))
+        log.debug("Process chunk: {} with state: {}".format(b2h(chunk), state))
         state = compression_function(chunk, state)
     return state
 

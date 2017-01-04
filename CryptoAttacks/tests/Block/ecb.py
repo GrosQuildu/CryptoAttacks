@@ -91,7 +91,7 @@ def test_decrypt():
     for x in xrange(20):
         prefix_len = random.randint(0, 50)
         secret = random_str(random.randint(1, 50))
-        print "Secret to guess(hex): {}".format(secret.encode('hex'))
+        print "Secret to guess(hex): {}".format(b2h(secret))
         guessed_secret = ecb.decrypt(encryption_oracle_aes, constant, block_size=AES.block_size)
         assert secret == guessed_secret
         guessed_secret = ecb.decrypt(encryption_oracle_des, constant, block_size=DES3.block_size)

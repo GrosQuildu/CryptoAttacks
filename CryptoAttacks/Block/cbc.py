@@ -197,7 +197,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                     log.debug(
                         "Guessed char(\\x{:02x}), decrypted char(\\x{:02x})".format(guess_char, ord(decrypted_char)))
                     log.debug("Plaintext: {}".format(plaintext))
-                    log.info("Plaintext(hex): {}".format(plaintext.encode('hex')))
+                    log.info("Plaintext(hex): {}".format(b2h(plaintext)))
                     break
             position -= 1
             if found_correct_char is False:
@@ -209,7 +209,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                     is_correct = False
                 else:
                     log.critical_error("Can't find correct padding (oracle function return False 256 times)")
-    log.success("Decrypted(hex): {}".format(plaintext.encode('hex')))
+    log.success("Decrypted(hex): {}".format(b2h(plaintext)))
     return plaintext
 
 
@@ -293,7 +293,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         original_ciphertext = None
 
     fake_ciphertext_res = ''.join(new_ct_blocks)
-    log.success("Fake ciphertext(hex): {}".format(fake_ciphertext_res.encode('hex')))
+    log.success("Fake ciphertext(hex): {}".format(b2h(fake_ciphertext_res)))
     return fake_ciphertext_res
 
 

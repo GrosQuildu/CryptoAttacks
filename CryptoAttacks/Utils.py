@@ -5,6 +5,7 @@ import string
 import gmpy2
 import math
 from numbers import Number
+import hashlib
 
 # _ord = ord
 # _chr = chr
@@ -71,7 +72,7 @@ class Log(object):
 log = Log()
 
 
-def b2h(a):
+def b2h(a, size=0):
     """Encode bytes to hex string"""
     return a.encode('hex')
 
@@ -90,16 +91,16 @@ def h2i(a):
     return int(a, 16)
 
 
-def i2h(a):
+def i2h(a, size=0):
     """Encode int as hex string"""
-    return hex(a)[2:].strip('L')
+    return i2b(a, size=size).encode('hex')
 
 
 def b2i(number_bytes, endian='big'):
     """Unpack bytes into int
 
     Args:
-        number_bytes(int)
+        number_bytes(string)
         endian(string): big/little
 
     Returns:
@@ -212,6 +213,25 @@ def strip_padding(data, block_size=16):
     return data[:-padding]
 
 
+def add_rsa_signature_padding(data, size=1024, hash_function='sha1'):
+    """add PKCS#1 v1.5 sign padding"""
+    hash_asn1 = {
+        'md5': '\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10',
+        'sha1': '\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14',
+        'sha256': '\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20',
+        'sha384': '\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
+        'sha512': '\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
+    }
+    if hash_function not in hash_asn1.keys():
+        log.critical_error("Hash function {} not supported".format(hash_function))
+
+    hash_data = getattr(hashlib, hash_function)(data).digest()
+    padded = hash_asn1[hash_function] + hash_data
+    padded = '\xff'*(size//8 - len(padded) - 2)
+    padded = "\x00\x01" + padded
+    return padded
+
+
 def hamming_distance(a, b):
     return sum(map(int, [bin(int(b2h(xor(x, y)), 16)).count('1') for x, y in zip(a, b)] ))
 
@@ -221,7 +241,7 @@ def chunks(data, block_size):
 
 
 def print_chunks(data, delim=' | '):
-    return delim.join([x.encode('hex') for x in data])
+    return delim.join([b2h(x) for x in data])
 
 
 def random_str(length):

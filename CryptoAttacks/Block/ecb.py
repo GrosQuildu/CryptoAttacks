@@ -190,7 +190,7 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
                     break
             else:
                 log.critical_error("Char not found, try change alphabet. Secret so far: {}".format(repr(secret)))
-        log.info("Secret(hex): {}".format(secret.encode('hex')))
+        log.info("Secret(hex): {}".format(b2h(secret)))
         return secret
     else:
         log.debug("constant == False")
