@@ -6,22 +6,6 @@ def _left_rotate(val, r_bits, max_bits=32):
            ((val & (2**max_bits-1)) >> (max_bits-(r_bits % max_bits)))
 
 
-def add_md_padding(data, endian='big'):
-    """Merkle-Damgard padding
-
-    Args: data(string)
-    Returns: data+padding(string)
-    """
-    size = len(data) & 0x3f  # len_in_bytes % 64
-    if size < 56:
-        size = 56 - size
-    else:
-        size = 120 - size
-    p = '\x80' + '\x00' * 63
-    p = p[:size]
-    return data + p + i2b(len(data)*8, size=64, endian=endian)
-
-
 def merkle_damgard(data, initial_state, compression_function):
     """Merkle-Damgard construction
 
@@ -29,6 +13,9 @@ def merkle_damgard(data, initial_state, compression_function):
         data(string)
         initial_state(list of ints)
         compression_function(function)
+
+    Returns:
+        final state(string)
     """
     state = initial_state[:]
     data_chunks = chunks(data, 64)
@@ -208,17 +195,28 @@ def md4(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], pa
     return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
 
 
-def length_extension(hash, new_message, size=None, type='sha1'):
-    implemented_functions = ['sha1', 'md4']
-    if type not in implemented_functions:
-        log.critical_error("{} not implemented, type must be one of {}".format(type, implemented_functions))
+def length_extension(hash, size, new_message, type='sha1'):
+    """Length extension attack: given hash(secret) and len(secret),
+    compute new_hash and old_padding so that hash(secret+old_padding+new_message) == new_hash
 
+    Args:
+        hash(string): hash of secret value
+        size(int): length of secret (in bytes)
+        new_message(string)
+        type(string): sha1 or md4
+
+    Returns:
+        tuple: (new_hash, old_padding+new_message)
+    """
+    implemented_functions = ['sha1', 'md4']
     if type == 'sha1':
         endian = 'big'
         hash_function = sha1
     elif type == 'md4':
         endian = 'little'
         hash_function = md4
+    else:
+        log.critical_error("Not implemented, type must be one of {}".format(implemented_functions))
 
     old_padding = add_md_padding('a' * size, endian=endian)[size:]
     new_data_size = len(new_message)+len(old_padding)+size

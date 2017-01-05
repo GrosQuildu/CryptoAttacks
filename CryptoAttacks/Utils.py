@@ -7,26 +7,6 @@ import math
 from numbers import Number
 import hashlib
 
-# _ord = ord
-# _chr = chr
-
-
-# def ord(v):
-#     if isinstance(v, int):
-#         return v
-#     elif isinstance(v, str):
-#         return _ord(v)
-#     else:
-#         return _ord(v)
-
-
-# def chr(v):
-#     if isinstance(v, int):
-#         return _chr(v)
-#     elif isinstance(v, str):
-#         return v
-#     else:
-#         return _chr(v)
 
 class Log(object):
     def __init__(self):
@@ -233,6 +213,22 @@ def add_rsa_signature_padding(data, size=1024, hash_function='sha1'):
     padded = '\xff'*(size//8 - len(padded) - 2)
     padded = "\x00\x01" + padded
     return padded + data
+
+
+def add_md_padding(data, endian='big'):
+    """Merkle-Damgard padding
+
+    Args: data(string)
+    Returns: data+padding(string)
+    """
+    size = len(data) & 0x3f  # len_in_bytes % 64
+    if size < 56:
+        size = 56 - size
+    else:
+        size = 120 - size
+    p = '\x80' + '\x00' * 63
+    p = p[:size]
+    return data + p + i2b(len(data)*8, size=64, endian=endian)
 
 
 def hamming_distance(a, b):

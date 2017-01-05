@@ -215,7 +215,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
 
 def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, original_ciphertext=None,
                     iv=None, original_plaintext=None, block_size=16):
-    """Make ciphertext so it will decrypt to given plaintext
+    """Make ciphertext that will decrypt to given plaintext
     Give padding_oracle or decryption_oracle (or both)
 
     Args:

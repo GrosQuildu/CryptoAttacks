@@ -36,7 +36,7 @@ def convergents(e):
 
 
 def crt(a, n):
-    """Chinese remainder theorem
+    """Solve chinese remainder theorem
     from: http://rosettacode.org/wiki/Chinese_remainder_theorem#Python
 
     Args:

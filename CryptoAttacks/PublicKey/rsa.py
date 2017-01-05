@@ -47,18 +47,21 @@ class RSAKey(PyRSA._RSAobj):
         return tmp
 
     def add_ciphertext(self, ciphertext):
+        """Args: ciphertext(int)"""
         if not isinstance(ciphertext, Number):
             log.error("Ciphertext to add have to be number")
         else:
             self.texts.append({'cipher': ciphertext})
 
     def add_plaintext(self, plaintext):
+        """Args: plaintext(int)"""
         if not isinstance(plaintext, Number):
             log.error("Plaintext to add have to be number")
         else:
             self.texts.append({'plain': plaintext})
 
     def add_text_pair(self, ciphertext=None, plaintext=None):
+        """Args: ciphertext(int), plaintext(int)"""
         if not ciphertext and not plaintext:
             log.error("Can't add None ciphertext and None plaintext")
         tmp = {}
@@ -328,7 +331,6 @@ def faulty(key, padding=None):
     Returns:
         bool/RSAKey: False on failure, recovered private key otherwise
     """
-
     log.debug("Check signature-message pairs")
     for pair in key.texts:
         if 'plain' in pair and 'cipher' in pair:
@@ -493,7 +495,7 @@ def blinding(key, signing_oracle=None, decryption_oracle=None):
 
 
 def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'):
-    """Bleichenbacher's signature forgery based on verify implementation error
+    """Bleichenbacher's signature forgery based on bug in verify implementation
 
     Args:
         key(RSAKey): with small e and at least one plaintext
