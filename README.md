@@ -7,19 +7,19 @@
 
 ### Attacks:
 * Classic
-	+ [One time pad / xor](docs/Classic/one_time_pad.md)
+	+ [One time pad / xor](CryptoAttacks/docs/Classic/one_time_pad.md)
 		+ Guess key size
 		+ Repeated key
 		+ Reused key
 * Block
-	+ [CBC](docs/Block/cbc.md)
+	+ [CBC](CryptoAttacks/docs/Block/cbc.md)
 		+ Bit flipping
 		+ Padding oracle
 		* Key as IV
-	+ [ECB](docs/Block/ecb.md)
+	+ [ECB](CryptoAttacks/docs/Block/ecb.md)
 		+ Byte-at-time decryption
 * Public Key
-	+ [RSA](docs/PublicKey/rsa.md)
+	+ [RSA](CryptoAttacks/docs/PublicKey/rsa.md)
 	    * Small e, small plaintext
 		+ Common primes
 		+ Wiener's small private exponent
@@ -28,14 +28,14 @@
 		+ Parity oracle
 		* Blinding (signatures/ciphertexts)
 		* Bleichenbacher'06 signature forgery
-* [Hash](docs/Hash.md)
+* [Hash](CryptoAttacks/docs/Hash.md)
     * Length extension
-* [Utils](docs/Utils.md)
-* [Math](docs/Math.md)
+* [Utils](CryptoAttacks/docs/Utils.md)
+* [Math](CryptoAttacks/docs/Math.md)
 
-For docs(strings) check docs/
+For docs(strings) check CryptoAttacks/docs/
 
-For example uses check tests/
+For example uses check CryptoAttacks/tests/
 
 To change verbosity:
 ```python
