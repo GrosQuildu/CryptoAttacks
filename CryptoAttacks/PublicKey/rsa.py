@@ -449,7 +449,7 @@ def blinding(key, signing_oracle=None, decryption_oracle=None):
         decryption_oracle(function)
 
     Returns:
-        dict: keys: positions, values: signatures or plaintexts
+        dict: {index: signature/plaintext, index2: signature/plaintext}
         update key texts
     """
     if not signing_oracle and not decryption_oracle:

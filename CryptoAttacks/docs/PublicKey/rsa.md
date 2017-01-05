@@ -68,14 +68,6 @@ class RSAKey(Crypto.PublicKey.RSA._RSAobj):
         Returns:
             RSAKey
         """
-        tmp_key = PyRSA.importKey(open(filename).read(), *args, **kwargs)
-        tmp_key.__class__ = RSAKey
-        tmp_key.__init__()
-        if identifier:
-            tmp_key.identifier = identifier
-        else:
-            tmp_key.identifier = filename
-        return tmp_key
 
 
 def small_e_msg(key, max_times=100):
@@ -207,7 +199,7 @@ def blinding(key, signing_oracle=None, decryption_oracle=None):
         decryption_oracle(function)
 
     Returns:
-        dict: keys: positions, values: signatures or plaintexts
+        dict: {index: signature/plaintext, index2: signature/plaintext}
         update key texts
     """
 
