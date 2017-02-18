@@ -35,6 +35,16 @@ def convergents(e):
         yield (ni, di)
 
 
+def product(numbers):
+    if len(numbers) == 0:
+        return 0
+    if type(numbers) == list:
+        return reduce(lambda x, y: x * y, numbers)
+    elif type(numbers) == dict:
+        return reduce(lambda x, y: x * (y**numbers[y]), numbers, 1)
+    return False
+
+
 def crt(a, n):
     """Solve chinese remainder theorem
     from: http://rosettacode.org/wiki/Chinese_remainder_theorem#Python
@@ -49,13 +59,13 @@ def crt(a, n):
     if len(a) != len(n):
         log.critical_error("Different number of remainders({}) and modules({})".format(len(a), len(n)))
 
-    sum = 0
-    prod = reduce(lambda x, y: x * y, n)
+    prod = product(n)
+    sum_crt = 0
 
     for n_i, a_i in zip(n, a):
         p = prod / n_i
-        sum += a_i * gmpy2.invert(p, n_i) * p
-    return long(sum % prod)
+        sum_crt += a_i * gmpy2.invert(p, n_i) * p
+    return long(sum_crt % prod)
 
 
 def euler_phi(factors):
@@ -112,7 +122,7 @@ def factors(n):
     """Find factors of n
     from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python
     """
-    return set(reduce(list.__add__, ([i, n//i] for i in range(2, int(n**0.5) + 1) if n % i == 0)))
+    return set(reduce(list.__add__, ([i, n//i] for i in xrange(2, int(n**0.5) + 1) if n % i == 0)))
 
 
 def egcd(*args):

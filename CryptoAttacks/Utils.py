@@ -7,6 +7,9 @@ import math
 from numbers import Number
 import hashlib
 
+import requests
+from BeautifulSoup import BeautifulSoup
+
 
 class Log(object):
     def __init__(self):
@@ -66,7 +69,7 @@ def h2b(a):
         try:
             return ('0'+a).decode('hex')
         except Exception, e:
-            print e
+            print a, e
 
 
 def h2i(a):
@@ -176,10 +179,12 @@ def xor(*args, **kwargs):
     else:
         max_size = len(max(args, key=len))
         result = '\x00' * max_size
-        args = [(arg * max_size)[:max_size] for arg in args]
     for one in args:
-        result = [xor_one(x, y) for x, y in zip(one, result)]
-    return ''.join(result)
+        tmp = ''
+        for x in range(len(result)):
+            tmp += chr(ord(result[x]) ^ ord(one[x%len(one)]))
+        result = tmp
+    return result
 
 
 def add_padding(data, block_size=16):
@@ -262,3 +267,53 @@ def random_prime(bytes=512):
         p = random.getrandbits(bytes)|1
     return p
 
+
+def factordb(number):
+    """Ask factordb.com for factorization
+
+    Args:
+        number(int)
+    Returns:
+        status(string):
+                        C - Composite, no factors known
+                        CF - Composite, factors known
+                        FF - Composite, fully factored
+                        P - Definitely prime
+                        Prp - Probably prime
+                        U - Unknown
+                        Unit - Just for 1
+                        N - This number is not in database (and was not added due to your settings)
+                        * - Added to database during this request
+        digits(int)
+        factors(dict): {factor: power,...}
+    """
+    def get_by_id(id):
+        resp = requests.get(url, params={'id': id})
+        dom = BeautifulSoup(resp.text)
+        return int(dom.find('form').find('input', {'name':'query'})['value'])
+
+    url = 'http://factordb.com/index.php'
+    resp = requests.get(url, params={'query': number})
+    dom = BeautifulSoup(resp.text)
+    results = dom.findAll('table')[1].findAll('tr')[2]
+
+    status = results.findAll('td')[0].text
+    digits = results.findAll('td')[1].text
+    digits = int(digits[:digits.index('(')])
+
+    factors_txt = results.findAll('td')[2].findAll('a')
+    factors_txt = factors_txt[1:]
+    factors = {}
+    for factor_id in range(len(factors_txt)):
+        if '...' in factors_txt[factor_id].getText():
+            tmp = factors_txt[factor_id]['href']
+            id = tmp[tmp.rindex('id=')+3:]
+            factors[get_by_id(id)] = 1
+        else:
+            to_parse = factors_txt[factor_id].text
+            if '^' in to_parse:
+                a, b = map(int, to_parse.split('^'))
+                factors[a] = b
+            else:
+                factors[int(to_parse)] = 1
+    return status, digits, factors
