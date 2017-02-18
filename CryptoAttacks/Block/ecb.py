@@ -195,3 +195,36 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
     else:
         log.debug("constant == False")
 
+
+def known_plaintexts(pairs, ciphertext, block_size=16):
+    """Given enough pairs plaintext-ciphertext, we can assign ciphertexts blocks to plaintexts blocks,
+    then we can possibly decrypt ciphertext
+
+    Args:
+        pairs(list): list of dict, [{'cipher': 'aaa', 'plain': 'bbb'}, {'cipher': 'xxx', 'plain': 'pwa'}]
+                     plaintexts have to be correctly padded (len(cipher) == len(plain))
+        ciphertext(string): ciphertext to decrypt
+        block_size(int)
+
+    Returns
+        tuple: ([decrypted_ciphertext_blocks], {'ciphertext_block': 'plaintext_block', ...})
+        decrypted_ciphertext_blocks may contain not-decrypted blocks from ciphertext
+    """
+    result_mapping = {}
+    for pair in pairs:
+        ciphertext_blocks = chunks(pair['cipher'], block_size)
+        plaintext_blocks = chunks(pair['plain'], block_size)
+        if len(ciphertext_blocks) != len(plaintext_blocks):
+            print pair
+            print ciphertext_blocks, plaintext_blocks
+            print len(ciphertext_blocks), len(plaintext_blocks)
+            assert 0
+        for cipher_block_no in range(len(ciphertext_blocks)):
+            result_mapping[ciphertext_blocks[cipher_block_no]] = plaintext_blocks[cipher_block_no]
+
+    target_ciphertext_blocks = chunks(ciphertext, block_size)
+    for cipher_block_no in range(len(target_ciphertext_blocks)):
+        if target_ciphertext_blocks[cipher_block_no] in result_mapping.keys():
+            target_ciphertext_blocks[cipher_block_no] = result_mapping[target_ciphertext_blocks[cipher_block_no]]
+
+    return target_ciphertext_blocks, result_mapping

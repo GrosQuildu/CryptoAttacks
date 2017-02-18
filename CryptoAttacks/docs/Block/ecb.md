@@ -66,5 +66,21 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
     Returns:
         secret(string)
     """
+
+
+def known_plaintexts(pairs, ciphertext, block_size=16):
+    """Given enough pairs plaintext-ciphertext, we can assign ciphertexts blocks to plaintexts blocks,
+    then we can possibly decrypt ciphertext
+
+    Args:
+        pairs(list): list of dict, [{'cipher': 'aaa', 'plain': 'bbb'}, {'cipher': 'xxx', 'plain': 'pwa'}]
+                     plaintexts have to be correctly padded (len(cipher) == len(plain))
+        ciphertext(string): ciphertext to decrypt
+        block_size(int)
+
+    Returns
+        tuple: ([decrypted_ciphertext_blocks], {'ciphertext_block': 'plaintext_block', ...})
+        decrypted_ciphertext_blocks may contain not-decrypted blocks from ciphertext
+    """
 ```
 

@@ -18,6 +18,7 @@
 		* Key as IV
 	+ [ECB](CryptoAttacks/docs/Block/ecb.md)
 		+ Byte-at-time decryption
+		+ Known plaintexts
 * Public Key
 	+ [RSA](CryptoAttacks/docs/PublicKey/rsa.md)
 	    * Small e, small plaintext
