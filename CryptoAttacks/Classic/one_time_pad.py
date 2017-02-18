@@ -480,3 +480,9 @@ def break_reuse_key(ciphertexts, lang='English', no_of_comparisons=5, alphabet=N
 
     res = map(lambda pair: (pair[0], chunks(pair[1], min_size)), pairs)
     return res
+
+
+def break_rot(ciphertext, alphabet=string.lowercase):
+    for rot in range(len(alphabet)):
+        tr = string.maketrans(alphabet, ''.join([alphabet[rot:], alphabet[:rot]]))
+        print rot, string.translate(ciphertext, tr)
