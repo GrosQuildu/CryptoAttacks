@@ -128,7 +128,7 @@ class RSAKey(PyRSA._RSAobj):
         if d or p or q:
             if not d:
                 p = p or q
-                d = long(gmpy2.invert(e, (p - 1)*(n/p - 1)))
+                d = long(invmod(e, (p - 1)*(n/p - 1)))
             tup = (n, e, d)
         else:
             tup = (n, e)
@@ -137,7 +137,7 @@ class RSAKey(PyRSA._RSAobj):
         tmp_key = PyRSA.construct(tup)
         tmp_key.__class__ = RSAKey
         tmp_key.__init__()
-        tmp_key.size = len(i2b(tmp_key.n))*8
+        tmp_key.size = int(math.ceil(math.log(tmp_key.n, 2)/8.0)*8)
         if identifier:
             tmp_key.identifier = identifier
         else:
@@ -157,7 +157,7 @@ class RSAKey(PyRSA._RSAobj):
         tmp_key = PyRSA.importKey(open(filename).read(), *args, **kwargs)
         tmp_key.__class__ = RSAKey
         tmp_key.__init__()
-        tmp_key.size = len(i2b(tmp_key.n)) * 8
+        tmp_key.size = int(math.ceil(math.log(tmp_key.n, 2)/8.0)*8)
         if identifier:
             tmp_key.identifier = identifier
         else:
@@ -210,7 +210,7 @@ def common_primes(keys):
             log.info("Found common prime in: {}, {}".format(pair[0].identifier, pair[1].identifier))
             for key_no in xrange(2):
                 if pair[key_no] not in priv_keys:
-                    d = long(gmpy2.invert(pair[key_no].e, (prime - 1) * (pair[key_no].n/prime - 1)))
+                    d = long(invmod(pair[key_no].e, (prime - 1) * (pair[key_no].n/prime - 1)))
                     new_key = RSAKey.construct(long(pair[key_no].n), long(pair[key_no].e), long(d), identifier=pair[key_no].identifier+'-private')
                     new_key.texts = pair[key_no].texts[:]
                     priv_keys.append(new_key)
@@ -256,7 +256,7 @@ def hastad(keys):
                     every key with only one ciphertext
 
     Returns:
-        bool/string: False on failure, recovered plaintext otherwise
+        bool/int: False on failure, recovered plaintext otherwise
         update keys texts
     """
     e = keys[0].e

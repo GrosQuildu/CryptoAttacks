@@ -64,7 +64,7 @@ def crt(a, n):
 
     for n_i, a_i in zip(n, a):
         p = prod / n_i
-        sum_crt += a_i * gmpy2.invert(p, n_i) * p
+        sum_crt += a_i * invmod(p, n_i) * p
     return long(sum_crt % prod)
 
 

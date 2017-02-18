@@ -5,6 +5,7 @@ import subprocess
 
 from CryptoAttacks.PublicKey.rsa import *
 from CryptoAttacks.Utils import *
+from CryptoAttacks.Math import *
 
 key_to_oracle = None
 
@@ -72,7 +73,7 @@ def test_wiener(tries=10):
             d = random.getrandbits(n_size / 4)
             if gmpy2.gcd(phi, d) == 1 and 81 * pow(d, 4) < n:
                 break
-        e = gmpy2.invert(d, phi)
+        e = invmod(d, phi)
         key = RSAKey.construct(long(n), long(e))
         key_recovered = wiener(key.publickey())
         if key_recovered:
