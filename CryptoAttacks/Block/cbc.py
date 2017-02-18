@@ -14,14 +14,13 @@ def padding_oracle(payload, iv):
     raise NotImplementedError
 
 
-def decryption_oracle(payload, iv):
+def decryption_oracle(block):
     """Function implementing decryption oracle. Have to work with ciphertexts that decrypt to
     incorrectly padded plaintexts, so before decryption you should append two blocks
     that will decrypt to something with valid padding, and return properly stripped plaintext
 
     Args:
-        payload(string): ciphertext to decrypt
-        iv(string): initialization vector (most often: append it at beginning of payload)
+        block(string): ciphertext to decrypt
 
     Returns:
         string: decrypted ciphertext (don't strip with padding)
@@ -36,7 +35,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
 
     if decryption_oracle:
         try:
-            decryption_oracle(payload='B' * block_size, iv='A' * block_size)
+            decryption_oracle('B' * block_size)
         except NotImplementedError:
             log.critical_error("decryption_oracle not implemented")
         except Exception, e:
@@ -53,7 +52,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
 
 def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, block_size=16,
             is_correct=True, amount=0, known_plaintext=None, async=False):
-    """Decrypt ciphertext using padding oracle
+    """Decrypt ciphertext
     Give padding_oracle or decryption_oracle (or both)
 
     Args:
@@ -73,11 +72,15 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
     _check_oracles(padding_oracle=padding_oracle, decryption_oracle=decryption_oracle, block_size=block_size)
 
     if decryption_oracle:
-        plaintext = decryption_oracle(ciphertext[block_size:], iv=ciphertext[:block_size])
-        if amount == 0:
-            return plaintext
-        else:
-            return plaintext[-(amount*block_size):]
+        if not iv:
+            ciphertext = ciphertext[block_size:]
+        blocks = chunks(ciphertext, block_size)[::-1]  # from last
+        plaintext = []
+        for block in blocks:
+            plaintext.append(decryption_oracle(block))
+            if amount !=0 and len(plaintext) == amount:
+                break
+        return ''.join(plaintext[::-1]) 
 
     if block_size % 8 != 0:
         log.critical_error("Incorrect block size: {}".format(block_size))
@@ -221,7 +224,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
     Args:
         new_plaintext(string): with padding
         padding_oracle(function/None)
-        decryption_oracle(function/None)
+        decryption_oracle(function/None): maximum one block to decrypt
         original_ciphertext(string): have to be correct,
                                     len(new_plaintext) == len(original_ciphertext)+len(iv)-len(block_size)
         iv(string): if not specified, first block of ciphertext is treated as iv
