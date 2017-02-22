@@ -4,6 +4,7 @@
 * Python 2.7
 * gmpy2
 * [pycrypto](https://pypi.python.org/pypi/pycrypto)
+* BeautifulSoup
 
 ### Attacks:
 * Classic
