@@ -31,6 +31,8 @@
 		* Bleichenbacher'06 signature forgery
 * [Hash](CryptoAttacks/docs/Hash.md)
     * Length extension
+* [PRNG](CryptoAttacks/docs/PRNG.md)
+	* Linear Congruence generator
 * [Utils](CryptoAttacks/docs/Utils.md)
 * [Math](CryptoAttacks/docs/Math.md)
 
