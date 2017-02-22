@@ -1,4 +1,3 @@
-import gmpy2
 from CryptoAttacks.Utils import log
 import operator
 
@@ -156,4 +155,46 @@ def invmod(a, n):
     if d != 1:
         raise ValueError("Modular inverse doesn't exists ({}**(-1) % {})".format(a, n))
     return s % n
+
+
+def legendre(a, p):
+    """Legendre symbol"""
+    tmp = pow(a, (p-1)//2, p)
+    return -1 if tmp == p-1 else tmp
+
+
+def tonelli_shanks(n, p):
+    """Find r such that r^2 = n % p, r2 == p-r"""
+    if legendre(n, p) != 1:
+        log.critical_error("Not a square root")
+
+    s = 0
+    q = p-1
+    while q&1 == 0:
+        s += 1
+        q >>= 1
+
+    if s == 1:
+        return pow(n, (p+1)//4, p)
+
+    z = 1
+    while legendre(z, p) != -1:
+        z += 1
+    c = pow(z, q, p)
+
+    r = pow(n, (q+1)//2, p)
+    t = pow(n, q, p)
+    m = s
+    while t != 1:
+        i = 1
+        while i < m:
+            if pow(t, 2**i, p) == 1:
+                break
+            i += 1
+        b = pow(c, 2**(m-i-1), p)
+        r = (r*b) % p
+        t = (t * (b**2)) % p
+        c = pow(b, 2, p)
+        m = i
+    return r
 
