@@ -1,96 +1,174 @@
+from __future__ import print_function
 import itertools
 from copy import deepcopy
+from numbers import Number
+from math import sqrt
+import sys
 
 from Crypto.PublicKey import RSA as PyRSA
 from CryptoAttacks.Math import *
 from CryptoAttacks.Utils import *
 
 
-class RSAKey(PyRSA._RSAobj):
-    def __init__(self):
+class RSAKey:
+    def __init__(self, n, e=0x10001, d=None, p=None, q=None, texts=None, identifier=None):
+        """Construct key
+
+        Args:
+            n(long): RSA modulus
+            e(long): Public exponent
+            d(long): Private exponent (d). If key is private, one of d,p or q must be given
+            p(long): First factor of n
+            q(long): Second factor of n
+            texts(list): list of dicts [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
+            identifier(string/None): unique identifier of key
+
+            self.size(int): bit size
         """
-        self.texts(list): list of dict [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
-        self.identifier(string): id(self), filename or custom
-        self.size(int): bit size
-        """
-        self.texts = []
-        self.identifier = ''
-        self.size = 0
+        if texts is None:
+            texts = []
+        self.texts = texts
+        self.identifier = identifier or str(id(self))
+
+        if d or p or q:
+            if not d:
+                if p:
+                    q = n//p
+                p = n//q
+                d = int(invmod(e, (p - 1) * (q - 1)))
+            else:
+                if p or q:
+                    if p:
+                        q = n//p
+                    p = n//q
+                else:
+                    p, q = factors_from_d(n, e, d)
+            tup = (n, e, d, p, q)
+        else:
+            tup = (n, e)
+        tup = map(long, tup)
+
+        self.n, self.e, self.d, self.p, self.q = n, e, d, p, q
+        self.size = int(math.ceil(math.log(n, 2) / 8.0) * 8)
+        self.pyrsa_key = PyRSA.construct(tup)
 
     def encrypt(self, plaintext):
         """Raw encryption
-        Args: plaintext(int)
+
+        Args: plaintext(int/string)
         Returns: pow(plaintext,e,n)
         """
-        return pow(plaintext, self.e, self.n)
+        if not isinstance(plaintext, Number):
+            try:
+                plaintext = b2i(plaintext)
+            except:
+                log.critical_error(
+                    "Plaintext to decrypt must be number or be convertible to number ({})".format(plaintext))
+        return self.pyrsa_key.encrypt(long(plaintext), 0)[0]
 
     def decrypt(self, ciphertext):
         """Raw decryption
-        Args: ciphertext
+
+        Args: ciphertext(int/string)
         Returns: pow(ciphertext, d, n)
         """
-        return pow(ciphertext, self.d, self.n)
+        if not isinstance(ciphertext, Number):
+            try:
+                ciphertext = b2i(ciphertext)
+            except:
+                log.critical_error(
+                    "Ciphertext to decrypt must be number or be convertible to number ({})".format(ciphertext))
+        return self.pyrsa_key.decrypt(long(ciphertext))
 
     def copy(self, identifier=''):
         if self.has_private():
-            tmp = RSAKey.construct(self.n, self.e, self.d, self.p, self.q, identifier=identifier)
-            tmp.texts = deepcopy(self.texts)
+            tmp_key = RSAKey(self.n, self.e, self.d, self.p, self.q, identifier=identifier)
         else:
-            tmp = RSAKey.construct(self.n, self.e, identifier=identifier)
-            tmp.texts = deepcopy(self.texts)
-        return tmp
+            tmp_key = RSAKey(self.n, self.e, identifier=identifier)
+        tmp_key.texts = deepcopy(self.texts)
+        return tmp_key
 
     def publickey(self, identifier=''):
         """Extract public key"""
-        tmp = RSAKey.construct(self.n, self.e, identifier=identifier)
-        tmp.texts = deepcopy(self.texts)
-        return tmp
+        derived_public_key = RSAKey(self.n, self.e, identifier=identifier+' - publickey')
+        derived_public_key.texts = deepcopy(self.texts)
+        return derived_public_key
 
-    def add_ciphertext(self, ciphertext):
-        """Args: ciphertext(int)"""
+    def has_private(self):
+        return any([self.d, self.p, self.q])
+
+    def add_ciphertext(self, ciphertext, position=None):
+        """Args:
+            ciphertext(int/string)
+            position(int/None) - position in list where to add, None for new
+        """
         if not isinstance(ciphertext, Number):
-            log.error("Ciphertext to add have to be number")
-        else:
+            try:
+                ciphertext = b2i(ciphertext)
+            except:
+                log.critical_error("Ciphertext to add must be number or be convertible to number ({})".format(ciphertext))
+        if position is None:
             self.texts.append({'cipher': ciphertext})
-
-    def add_plaintext(self, plaintext):
-        """Args: plaintext(int)"""
-        if not isinstance(plaintext, Number):
-            log.error("Plaintext to add have to be number")
         else:
+            self.texts[position]['cipher'] = ciphertext
+
+    def add_plaintext(self, plaintext, position=None):
+        """Args:
+            plaintext(int)
+            position(int/None) - position in list where to add, None for new
+        """
+        if not isinstance(plaintext, Number):
+            try:
+                plaintext = b2i(plaintext)
+            except:
+                log.critical_error("Plaintext to add must be number or be convertible to number ({})".format(plaintext))
+        if position is None:
             self.texts.append({'plain': plaintext})
+        else:
+            self.texts[position]['plain'] = plaintext
 
     def add_text_pair(self, ciphertext=None, plaintext=None):
         """Args: ciphertext(int), plaintext(int)"""
         if not ciphertext and not plaintext:
             log.error("Can't add None ciphertext and None plaintext")
-        tmp = {}
+            return
+
+        text_pair = {}
         if ciphertext:
             if not isinstance(ciphertext, Number):
                 log.error("Ciphertext to add have to be number")
             else:
-                tmp['cipher'] = ciphertext
+                text_pair['cipher'] = ciphertext
         if plaintext:
             if not isinstance(plaintext, Number):
                 log.error("Plaintext to add have to be number")
             else:
-                tmp['plain'] = plaintext
-        self.texts.append(tmp)
+                text_pair['plain'] = plaintext
+        self.texts.append(text_pair)
 
     def clear_texts(self):
         self.texts = []
 
     def print_texts(self):
-        print "key {} texts".format(self.id)
+        print("key {} texts:".format(self.identifier))
         for pair in self.texts:
             if 'cipher' in pair:
-                print "Ciphertext: {}".format(hex(pair['cipher']))
+                print("Ciphertext: {}".format(hex(pair['cipher'])), end=", ")
             else:
-                print "Ciphertext: null"
+                print("Ciphertext: null", end=", ")
             if 'plain' in pair:
-                print "Plaintext: {} (\"{}\")".format(hex(pair['plain']), i2b(pair['plain'], size=self.size))
+                print("Plaintext: {} (\"{}\")".format(hex(pair['plain']), i2b(pair['plain'], size=self.size)))
             else:
-                print "Plaintext: null"
+                print("Plaintext: null")
+
+    def __str__(self):
+        if self.has_private():
+            return str(self.identifier) + " (private)"
+        else:
+            return str(self.identifier) + " (public)"
+
+    def __repr__(self):
+        return self.__str__()
 
     @staticmethod
     def generate(bits, e=0x10001, randfunc=None, progress_func=None, identifier=None):
@@ -102,18 +180,11 @@ class RSAKey(PyRSA._RSAobj):
         identifier(string/None): unique identifier of key
         """
         tmp_key = PyRSA.generate(bits, e=e, randfunc=randfunc, progress_func=progress_func)
-        tmp_key.__class__ = RSAKey
-        tmp_key.__init__()
-        tmp_key.size = bits
-        if identifier:
-            tmp_key.identifier = identifier
-        else:
-            tmp_key.identifier = str(id(tmp_key))
-        return tmp_key
+        return RSAKey(tmp_key.n, tmp_key.e, tmp_key.d, tmp_key.p, tmp_key.q, identifier=identifier)
 
     @staticmethod
     def construct(n, e=0x10001, d=None, p=None, q=None, identifier=None):
-        """Construct key from tuple
+        """Construct key
 
         Args:
             n(long): RSA modulus
@@ -125,24 +196,7 @@ class RSAKey(PyRSA._RSAobj):
         Returns:
             RSAKey
         """
-        if d or p or q:
-            if not d:
-                p = p or q
-                d = long(invmod(e, (p - 1)*(n/p - 1)))
-            tup = (n, e, d)
-        else:
-            tup = (n, e)
-        tup = map(long, tup)
-
-        tmp_key = PyRSA.construct(tup)
-        tmp_key.__class__ = RSAKey
-        tmp_key.__init__()
-        tmp_key.size = int(math.ceil(math.log(tmp_key.n, 2)/8.0)*8)
-        if identifier:
-            tmp_key.identifier = identifier
-        else:
-            tmp_key.identifier = str(id(tmp_key))
-        return tmp_key
+        return RSAKey(n, e, d, p, q, identifier=identifier)
 
     @staticmethod
     def import_key(filename, identifier=None, *args, **kwargs):
@@ -154,43 +208,60 @@ class RSAKey(PyRSA._RSAobj):
         Returns:
             RSAKey
         """
-        tmp_key = PyRSA.importKey(open(filename).read(), *args, **kwargs)
-        tmp_key.__class__ = RSAKey
-        tmp_key.__init__()
-        tmp_key.size = int(math.ceil(math.log(tmp_key.n, 2)/8.0)*8)
-        if identifier:
-            tmp_key.identifier = identifier
-        else:
-            tmp_key.identifier = filename
-        return tmp_key
+        tmp_key = PyRSA.importKey(open(filename).read())
+        return RSAKey(tmp_key.n, tmp_key.e, tmp_key.d, tmp_key.p, tmp_key.q, identifier=identifier)
+
+    def export_key(self, format='PEM', passphrase=None, pkcs=1, *args, **kwargs):
+        """Export key as string"""
+        return self.pyrsa_key.exportKey(format, passphrase, pkcs)
 
 
-def small_e_msg(key, max_times=100):
+def factors_from_d(n, e, d):
+    k = e * d - 1
+    while True:
+        g = random.randint(2, n - 2)
+        b = k // (2**power_of_two(k))
+        while b < k:
+            gb = pow(g, b, n)
+            if gb != 1 and gb != n-1 and pow(gb, 2, n) == 1:
+                if gcd(gb-1, n) != 1:
+                    p = gcd(gb-1, n)
+                else:
+                    p = gcd(gb+1, n)
+                return p, n//p
+            b *= 2
+
+
+def get_mutable_texts(key, texts):
+    if texts is None:
+        return [key_texts['cipher'] for key_texts in key.texts if 'cipher' in key_texts and 'plain' not in key_texts]
+    return texts
+
+
+def small_e_msg(key, ciphertexts=None, max_times=100):
     """If both e and plaintext are small, ciphertext may exceed modulus only a little
 
     Args:
         key(RSAKey): with small e, at least one ciphertext
+        ciphertexts(list)
         max_times(int): how many times plaintext**e exceeded modulus maximally
 
     Returns:
-        dict: recovered plaintexts
-        update key texts with found plaintexts
+        list: recovered plaintexts
     """
-    recovered = {}
-    for text_no in range(len(key.texts)):
-        if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
-            cipher = key.texts[text_no]['cipher']
-            log.debug("Find msg for ciphertext {}".format(cipher))
-            times = 0
-            for k in range(max_times):
-                msg, is_correct = gmpy2.iroot(cipher+times, key.e)
-                if is_correct and pow(msg, key.e, key.n) == cipher:
-                    msg = long(msg)
-                    log.success("Found msg: {}, times=={}".format(i2b(msg), times))
-                    key.texts[text_no]['plain'] = msg
-                    recovered[text_no] = msg
-                    break
-                times += key.n
+    ciphertexts = get_mutable_texts(key, ciphertexts)
+    recovered = []
+    for ciphertext in ciphertexts:
+        log.debug("Find msg for ciphertext {}".format(ciphertext))
+        times = 0
+        for k in range(max_times):
+            msg, is_correct = gmpy2.iroot(ciphertext + times, key.e)
+            if is_correct and pow(msg, key.e, key.n) == ciphertext:
+                msg = long(msg)
+                log.success("Found msg: {}, times=={}".format(i2b(msg), times))
+                recovered.append(msg)
+                break
+            times += key.n
     return recovered
 
 
@@ -198,10 +269,10 @@ def common_primes(keys):
     """Find common prime in keys modules
 
     Args:
-        keys(list):  RSAKeys
+        keys(list): RSAKeys
 
     Returns:
-        list:  RSAKeys for which factorization of n was found
+        list: RSAKeys for which factorization of n was found
     """
     priv_keys = []
     for pair in itertools.combinations(keys, 2):
@@ -210,8 +281,9 @@ def common_primes(keys):
             log.info("Found common prime in: {}, {}".format(pair[0].identifier, pair[1].identifier))
             for key_no in xrange(2):
                 if pair[key_no] not in priv_keys:
-                    d = long(invmod(pair[key_no].e, (prime - 1) * (pair[key_no].n/prime - 1)))
-                    new_key = RSAKey.construct(long(pair[key_no].n), long(pair[key_no].e), long(d), identifier=pair[key_no].identifier+'-private')
+                    d = long(invmod(pair[key_no].e, (prime - 1) * (pair[key_no].n / prime - 1)))
+                    new_key = RSAKey.construct(long(pair[key_no].n), long(pair[key_no].e), long(d),
+                                               identifier=pair[key_no].identifier + '-private')
                     new_key.texts = pair[key_no].texts[:]
                     priv_keys.append(new_key)
                 else:
@@ -235,12 +307,12 @@ def wiener(key):
             phi = (key.e * d - 1) // k
             """ p**2 - p*(n - phi + 1) + n == 0 """
             b = key.n - phi + 1
-            delta = b*b - 4*key.n
+            delta = b * b - 4 * key.n
             if delta > 0:
                 sqrt_delta = gmpy2.isqrt(delta)
-                if sqrt_delta*sqrt_delta == delta and sqrt_delta % 2 == 0:
+                if sqrt_delta * sqrt_delta == delta and sqrt_delta % 2 == 0:
                     log.debug("Found private key (d={}) for {}".format(d, key.identifier))
-                    new_key = RSAKey.construct(key.n, key.e, d, identifier=key.identifier+'-private')
+                    new_key = RSAKey.construct(key.n, key.e, d, identifier=key.identifier + '-private')
                     new_key.texts = key.texts[:]
                     return new_key
     return False
@@ -351,7 +423,7 @@ def faulty(key, padding=None):
         p = gmpy2.gcd(pair[0] - pair[1], key.n)
         if p != 1 and p != key.n:
             log.info("Found p={}".format(p))
-            new_key = RSAKey.construct(key.n, key.e, p=p, identifier=key.identifier+'-private')
+            new_key = RSAKey.construct(key.n, key.e, p=p, identifier=key.identifier + '-private')
             new_key.texts = key.texts[:]
             return new_key
     return False
@@ -396,7 +468,7 @@ def parity(parity_oracle, key):
             counter = lower_bound = numerator = 0
             upper_bound = key.n
             denominator = 1
-            while lower_bound+1 < upper_bound:
+            while lower_bound + 1 < upper_bound:
                 cipher = (two_encrypted * cipher) % key.n
                 denominator *= 2
                 numerator *= 2
@@ -406,10 +478,10 @@ def parity(parity_oracle, key):
                 if is_odd:  # plaintext > n/(2**counter)
                     numerator += 1
                 lower_bound = (key.n * numerator) / denominator
-                upper_bound = (key.n * (numerator+1)) / denominator
+                upper_bound = (key.n * (numerator + 1)) / denominator
 
                 log.debug("{} {} [{}, {}]".format(counter, is_odd, long(lower_bound), long(upper_bound)))
-                log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator+1, denominator))
+                log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator + 1, denominator))
             log.success("Decrypted: {}".format(i2b(upper_bound)))
             key.texts[text_no]['plain'] = upper_bound
             recovered[text_no] = upper_bound
@@ -486,7 +558,7 @@ def blinding(key, signing_oracle=None, decryption_oracle=None):
                 blinded_plaintext = decryption_oracle(blinded_ciphertext)
                 if not blinded_plaintext:
                     log.critical_error("Error during call to decryption_oracle({})".format(blinded_plaintext))
-                plaintext = (invmod(blind, key.n) * blinded_plaintext ) % key.n
+                plaintext = (invmod(blind, key.n) * blinded_plaintext) % key.n
                 key.texts[text_no]['plain'] = plaintext
                 recovered[text_no] = plaintext
                 log.success("Plaintext: {}".format(plaintext))
@@ -528,10 +600,11 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
             if 'plain' in key.texts[text_no] and 'cipher' not in key.texts[text_no]:
                 log.info("Forge for plaintext no {} ({})".format(text_no, key.texts[text_no]['plain']))
 
-                hash = getattr(hashlib, hash_function)(i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
+                hash = getattr(hashlib, hash_function)(
+                    i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
                 plaintext_prefix = "\x00\x01\xff\x00" + hash_asn1[hash_function] + hash
 
-                plaintext = plaintext_prefix + '\x00'*(key.size//8 - len(plaintext_prefix))
+                plaintext = plaintext_prefix + '\x00' * (key.size // 8 - len(plaintext_prefix))
                 plaintext = b2i(plaintext)
                 for round_error in range(-5, 5):
                     signature, _ = gmpy2.iroot(plaintext, key.e)
@@ -551,7 +624,8 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         for text_no in range(len(key.texts)):
             if 'plain' in key.texts[text_no] and 'cipher' not in key.texts[text_no]:
                 log.info("Forge for plaintext no {} ({})".format(text_no, key.texts[text_no]['plain']))
-                hash = getattr(hashlib, hash_function)(i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
+                hash = getattr(hashlib, hash_function)(
+                    i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
                 plaintext_suffix = "\x00" + hash_asn1[hash_function] + hash
                 if b2i(plaintext_suffix) & 1 != 1:
                     log.error("Plaintext suffix is even, can't compute signature")
@@ -559,21 +633,22 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
 
                 # compute suffix
                 signature_suffix = 0b1
-                for b in range(len(plaintext_suffix)*8):
-                    if (signature_suffix**3) & (1 << b) != b2i(plaintext_suffix) & (1 << b):
+                for b in range(len(plaintext_suffix) * 8):
+                    if (signature_suffix ** 3) & (1 << b) != b2i(plaintext_suffix) & (1 << b):
                         signature_suffix |= 1 << b
                 signature_suffix = i2b(signature_suffix)[-len(plaintext_suffix):]
 
                 # compute prefix
                 while True:
-                    plaintext_prefix = "\x00\x01\xff" + random_str(key.size//8 - 3)
+                    plaintext_prefix = "\x00\x01\xff" + random_str(key.size // 8 - 3)
                     signature_prefix, _ = gmpy2.iroot(b2i(plaintext_prefix), key.e)
                     signature_prefix = i2b(int(signature_prefix), size=key.size)[:-len(signature_suffix)]
 
                     signature = b2i(signature_prefix + signature_suffix)
                     test_plaintext = i2b(pow(signature, key.e, key.n), size=key.size)
                     if '\x00' not in test_plaintext[2:-len(plaintext_suffix)]:
-                        if test_plaintext[:3] == plaintext_prefix[:3] and test_plaintext[-len(plaintext_suffix):] == plaintext_suffix:
+                        if test_plaintext[:3] == plaintext_prefix[:3] and test_plaintext[
+                                                                          -len(plaintext_suffix):] == plaintext_suffix:
                             log.info("Got signature: {}".format(signature))
                             key.texts[text_no]['cipher'] = signature
                             signatures[text_no] = signature
