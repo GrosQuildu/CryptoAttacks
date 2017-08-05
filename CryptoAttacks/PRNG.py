@@ -24,37 +24,43 @@ class LCG(object):
 
     def prev(self):
         """Returns previous state"""
-        new_state = ((self.state - b) * invmod(a, self.m)) % self.m
+        new_state = ((self.state - self.b) * invmod(self.a, self.m)) % self.m
         self.state = new_state
         return new_state
 
+    @staticmethod
+    def compute_params(s, m=None, a=None, b=None):
+        """Compute parameters and initial seed for LCG prng
+        next_state = a*seed + b mod m
 
-def compute_params(s):
-    """Compute parameters and initial seed for LCG prng
+        Args:
+            s(list): subsequent outputs from LCG oracle
+            m(int/None)
+            a(int/None)
+            b(int/None)
 
-    Args:
-        s(list): subsequent outputs from LCG oracle
+        Returns:
+            seed, a, b, m(int): assuming first state in s was derived from seed
+        """
+        if m is None:
+            t = [s[n + 1] - s[n] for n in xrange(len(s) - 1)]
+            u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in xrange(len(t) - 2)]
+            m = gcd(*u)
+            log.success("m = {}".format(m))
 
-    Returns:
-        seed(int): assuming first state in s was derived from seed
-        a, b, m(ints): a,b,m(ints): next_state = a*seed + b mod m
-    """
-    t = [s[n + 1] - s[n] for n in xrange(len(s) - 1)]
-    u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in xrange(len(t) - 2)]
-    m = gcd(*u)
-    log.success("m = {}".format(m))
+        if a is None:
+            if gcd(s[1] - s[0], m) == 1:
+                a = (s[2] - s[1]) * invmod(s[1] - s[0], m)
+            elif gcd(s[2] - s[0], m) == 1:
+                a = (s[3] - s[1]) * invmod(s[2] - s[0], m)
+            else:
+                log.critical_error("a not found")
+            log.succes("a = {}".format(a))
 
-    if gcd(s[1] - s[0], m) == 1:
-        a = (s[2] - s[1]) * invmod(s[1] - s[0], m)
-    elif gcd(s[2] - s[0], m) == 1:
-        a = (s[3] - s[1]) * invmod(s[2] - s[0], m)
-    else:
-        log.critical_error("a not found")
-    log.succes("a = {}".format(a))
+        if b is None:
+            b = (s[1] - s[0] * a) % m
+            log.success("b = {}".format(b))
 
-    b = (s[1] - s[0] * a) % m
-    log.success("b = {}".format(b))
-
-    seed = (((s[0] - b) % m) * invmod(a, m)) % m
-    log.success("seed = {}".format(seed))
-    return seed, a, b, m
+        seed = (((s[0] - b) % m) * invmod(a, m)) % m
+        log.success("seed = {}".format(seed))
+        return seed, a, b, m

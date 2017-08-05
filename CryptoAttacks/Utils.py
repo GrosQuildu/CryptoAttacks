@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import random
 import string
 import gmpy2
@@ -23,12 +24,12 @@ class Log(object):
     @level.setter
     def level(self, value):
         if value not in self._levels.keys():
-            print "Not in possible levels:", self._levels.keys()
+            print("Not in possible levels:", self._levels.keys())
         else:
             self._level = self._levels[value]
 
     def __call__(self, *args, **kwargs):
-        print args
+        print(args)
 
     def debug(self, a):
         min_level = 30
@@ -68,8 +69,8 @@ def h2b(a):
     except TypeError:
         try:
             return ('0'+a).decode('hex')
-        except Exception, e:
-            print a, e
+        except Exception as e:
+            print(a, e)
 
 
 def h2i(a):
@@ -268,6 +269,10 @@ def random_prime(bytes=512):
     return p
 
 
+def power_of_two(number):
+    """number == (2^x)*b, returns x"""
+    return len(bin(number)) - len(bin(number).rstrip('0'))
+
 def factordb(number):
     """Ask factordb.com for factorization
 
@@ -317,3 +322,4 @@ def factordb(number):
             else:
                 factors[int(to_parse)] = 1
     return status, digits, factors
+
