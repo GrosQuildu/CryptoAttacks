@@ -318,7 +318,7 @@ def wiener(key):
     return False
 
 
-def hastad(keys):
+def hastad(keys, ciphertexts=None):
     """Hastad's broadcast attack (small public exponent)
     Given at least e keys with public exponent equals to e and ciphertexts of the same plaintext,
     plaintext can be efficiently recovered
@@ -326,6 +326,7 @@ def hastad(keys):
     Args:
         keys(list): RSAKeys, all with same public exponent e, len(keys) >= e,
                     every key with only one ciphertext
+        ciphertexts(list/None): if not None, use this ciphertexts
 
     Returns:
         bool/int: False on failure, recovered plaintext otherwise
@@ -335,25 +336,29 @@ def hastad(keys):
     if len(keys) < e:
         log.critical_error("Not enough keys, e={}".format(e))
 
-    for key in keys:
-        if len(key.texts) != 1:
-            log.critical_error("Only one ciphertext per key allowed (key=={})".format(key.identifier))
-        if 'plain' in key.texts[0]:
-            log.critical_error("key {} have plaintext already".format(key.identifier))
-        if 'cipher' not in key.texts[0]:
-            log.critical_error("key {} doesn't have ciphertext".format(key.identifier))
+    if ciphertexts is None:
+        for key in keys:
+            if len(key.texts) != 1:
+                log.info("Key have more than one ciphertext, using the first one(key=={})".format(key.identifier))
+            if 'cipher' not in key.texts[0]:
+                log.critical_error("key {} doesn't have ciphertext".format(key.identifier))
 
-    # prepare ciphertexts and correct_keys lists
-    ciphertexts, modules, correct_keys = [], [], []
-    for key in keys:
-        # get only first ciphertext (if exists)
-        if key.n not in modules and key.texts[0]['cipher'] not in ciphertexts:
-            if key.e == e:
-                modules.append(key.n)
-                correct_keys.append(key)
-                ciphertexts.append(key.texts[0]['cipher'])
-            else:
-                log.info("Key {} have different e(={})".format(key.identifier, key.e))
+        # prepare ciphertexts and correct_keys lists
+        ciphertexts, modules, correct_keys = [], [], []
+        for key in keys:
+            # get only first ciphertext (if exists)
+            if key.n not in modules and key.texts[0]['cipher'] not in ciphertexts:
+                if key.e == e:
+                    modules.append(key.n)
+                    correct_keys.append(key)
+                    ciphertexts.append(key.texts[0]['cipher'])
+                else:
+                    log.info("Key {} have different e(={})".format(key.identifier, key.e))
+    else:
+        if len(ciphertexts) != len(keys):
+            log.critical_error("len(ciphertexts) != len(keys)")
+        modules = [key.n for key in keys]
+        correct_keys = keys
 
     # check if we have enough ciphertexts
     if len(modules) < e:
