@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys
 
 from CryptoAttacks.PublicKey.rsa import RSAKey
@@ -90,35 +91,35 @@ def verify_bleichenbacher_middle(message, signature, key, hash_function='sha1'):
 
 if __name__ == '__main__':
     if len(sys.argv) < 4 or sys.argv[1] not in ['encrypt', 'decrypt', 'sign', 'verify', 'parity', 'verify_bleichenbacher_middle', 'verify_bleichenbacher_suffix']:
-        print "Usage: {} encrypt|decrypt|sign|verify|parity|verify_bleichenbacher_suffix|verify_bleichenbacher_middle "\
-               "key hexdata [more hexdata]".format(sys.argv[0])
+        print("Usage: {} encrypt|decrypt|sign|verify|parity|verify_bleichenbacher_suffix|verify_bleichenbacher_middle " \
+              "key hexdata [more hexdata]".format(sys.argv[0]))
         sys.exit(1)
 
     key = RSAKey.import_key(sys.argv[2])
 
     if sys.argv[1] == 'encrypt':
-        print b2h(encrypt(h2b(sys.argv[3]), key))
+        print(b2h(encrypt(h2b(sys.argv[3]), key)))
 
     elif sys.argv[1] == 'decrypt':
-        print b2h(decrypt(h2b(sys.argv[3]), key))
+        print(b2h(decrypt(h2b(sys.argv[3]), key)))
 
     elif sys.argv[1] == 'sign':
-        print b2h(sign(h2b(sys.argv[3]), key))
+        print(b2h(sign(h2b(sys.argv[3]), key)))
 
     elif sys.argv[1] == 'verify':
-        print verify(h2b(sys.argv[3]), h2b(sys.argv[4]), key)
+        print(verify(h2b(sys.argv[3]), h2b(sys.argv[4]), key))
 
     elif sys.argv[1] == 'parity':
-        print parity_oracle(h2b(sys.argv[3]), key)
+        print(parity_oracle(h2b(sys.argv[3]), key))
 
     elif sys.argv[1] == 'verify_bleichenbacher_suffix':
         message = h2b(sys.argv[3])
         signature = h2b(sys.argv[4])
         hash_function = sys.argv[5]
-        print verify_bleichenbacher_suffix(message, signature, key, hash_function)
+        print(verify_bleichenbacher_suffix(message, signature, key, hash_function))
 
     elif sys.argv[1] == 'verify_bleichenbacher_middle':
         message = h2b(sys.argv[3])
         signature = h2b(sys.argv[4])
         hash_function = sys.argv[5]
-        print verify_bleichenbacher_middle(message, signature, key, hash_function)
+        print(verify_bleichenbacher_middle(message, signature, key, hash_function))

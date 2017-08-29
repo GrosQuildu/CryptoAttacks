@@ -1,4 +1,6 @@
 from __future__ import print_function
+from builtins import range, int
+
 import itertools
 from copy import deepcopy
 from numbers import Number
@@ -64,7 +66,7 @@ class RSAKey:
             except:
                 log.critical_error(
                     "Plaintext to decrypt must be number or be convertible to number ({})".format(plaintext))
-        return self.pyrsa_key.encrypt(long(plaintext), 0)[0]
+        return self.pyrsa_key.encrypt(int(plaintext), 0)[0]
 
     def decrypt(self, ciphertext):
         """Raw decryption
@@ -78,7 +80,7 @@ class RSAKey:
             except:
                 log.critical_error(
                     "Ciphertext to decrypt must be number or be convertible to number ({})".format(ciphertext))
-        return self.pyrsa_key.decrypt(long(ciphertext))
+        return self.pyrsa_key.decrypt(int(ciphertext))
 
     def copy(self, identifier=''):
         if self.has_private():
@@ -114,7 +116,7 @@ class RSAKey:
 
     def add_plaintext(self, plaintext, position=None):
         """Args:
-            plaintext(int)
+            plaintext(int/string)
             position(int/None) - position in list where to add, None for new
         """
         if not isinstance(plaintext, Number):
@@ -175,8 +177,8 @@ class RSAKey:
         """
         bits(int): key size
         e(int): public exponent
-        randfunc(function)
-        progress_func(function)
+        randfunc(callable)
+        progress_func(callable)
         identifier(string/None): unique identifier of key
         """
         tmp_key = PyRSA.generate(bits, e=e, randfunc=randfunc, progress_func=progress_func)
@@ -208,6 +210,8 @@ class RSAKey:
         Returns:
             RSAKey
         """
+        if identifier is None:
+            identifier = filename
         tmp_key = PyRSA.importKey(open(filename).read())
         if hasattr(tmp_key, 'p'):
             return RSAKey(tmp_key.n, tmp_key.e, p=tmp_key.p, identifier=identifier)
@@ -260,7 +264,7 @@ def small_e_msg(key, ciphertexts=None, max_times=100):
         for k in range(max_times):
             msg, is_correct = gmpy2.iroot(ciphertext + times, key.e)
             if is_correct and pow(msg, key.e, key.n) == ciphertext:
-                msg = long(msg)
+                msg = int(msg)
                 log.success("Found msg: {}, times=={}".format(i2b(msg), times))
                 recovered.append(msg)
                 break
@@ -281,11 +285,11 @@ def common_primes(keys):
     for pair in itertools.combinations(keys, 2):
         prime = gmpy2.gcd(pair[0].n, pair[1].n)
         if prime != 1:
-            log.info("Found common prime in: {}, {}".format(pair[0].identifier, pair[1].identifier))
-            for key_no in xrange(2):
+            log.success("Found common prime in: {}, {}".format(pair[0].identifier, pair[1].identifier))
+            for key_no in range(2):
                 if pair[key_no] not in priv_keys:
-                    d = long(invmod(pair[key_no].e, (prime - 1) * (pair[key_no].n / prime - 1)))
-                    new_key = RSAKey.construct(long(pair[key_no].n), long(pair[key_no].e), long(d),
+                    d = int(invmod(pair[key_no].e, (prime - 1) * (pair[key_no].n / prime - 1)))
+                    new_key = RSAKey.construct(int(pair[key_no].n), int(pair[key_no].e), int(d),
                                                identifier=pair[key_no].identifier + '-private')
                     new_key.texts = pair[key_no].texts[:]
                     priv_keys.append(new_key)
@@ -302,7 +306,7 @@ def wiener(key):
         key(RSAKey): public rsa key to break
 
     Returns:
-        bool/RSAKey: False if didn't break key, private key otherwise
+        NoneType/RSAKey: None if didn't break key, private key otherwise
     """
     en_fractions = continued_fractions(key.e, key.n)
     for k, d in convergents(en_fractions):
@@ -318,7 +322,7 @@ def wiener(key):
                     new_key = RSAKey.construct(key.n, key.e, d, identifier=key.identifier + '-private')
                     new_key.texts = key.texts[:]
                     return new_key
-    return False
+    return None
 
 
 def hastad(keys, ciphertexts=None):
@@ -332,7 +336,7 @@ def hastad(keys, ciphertexts=None):
         ciphertexts(list/None): if not None, use this ciphertexts
 
     Returns:
-        bool/int: False on failure, recovered plaintext otherwise
+        NoneType/int: None on failure, recovered plaintext otherwise
         update keys texts
     """
     e = keys[0].e
@@ -382,7 +386,7 @@ def hastad(keys, ciphertexts=None):
     result = crt(ciphertexts, modules)
     plaintext, correct = gmpy2.iroot(result, e)
     if correct:
-        plaintext = long(plaintext)
+        plaintext = int(plaintext)
         log.success("Found plaintext: {}".format(plaintext))
         for one_key in correct_keys:
             one_key.texts[0]['plain'] = plaintext
@@ -391,7 +395,7 @@ def hastad(keys, ciphertexts=None):
         log.debug("Plaintext wasn't {}-th root")
         log.debug("result (from crt) = {}".format(e, result))
         log.debug("plaintext ({}-th root of result) = {}".format(e, plaintext))
-        return False
+        return None
 
 
 def faulty(key, padding=None):
@@ -400,7 +404,7 @@ def faulty(key, padding=None):
     sq' = padding(m)**(d % q-1) % q <--any error during computation
     s' = crt(sp, sq') % n <-- broken signature
     s = crt(sp, sq) % n <-- correct signature
-    p = gcd(s'**e - u(m), n)
+    p = gcd(s'**e - padding(m), n)
     p = gcd(s - s', n)
 
     Args:
@@ -409,7 +413,7 @@ def faulty(key, padding=None):
         padding(None/function): function used before signing message
 
     Returns:
-        bool/RSAKey: False on failure, recovered private key otherwise
+        NoneType/RSAKey: False on failure, recovered private key otherwise
     """
     log.debug("Check signature-message pairs")
     for pair in key.texts:
@@ -421,9 +425,9 @@ def faulty(key, padding=None):
             p = gmpy2.gcd(pow(signature, key.e) - message, key.n)
             if p != 1 and p != key.n:
                 log.info("Found p={}".format(p))
-                new_key = RSAKey.construct(key.n, key.e, p=p)
+                new_key = RSAKey.construct(key.n, key.e, p=p, identifier=key.identifier + '-private')
                 new_key.texts = key.texts[:]
-                return key
+                return new_key
 
     log.debug("Check for valid-invalid signatures")
     signatures = [tmp['cipher'] for tmp in key.texts if 'cipher' in tmp]
@@ -434,7 +438,7 @@ def faulty(key, padding=None):
             new_key = RSAKey.construct(key.n, key.e, p=p, identifier=key.identifier + '-private')
             new_key.texts = key.texts[:]
             return new_key
-    return False
+    return None
 
 
 def parity_oracle(ciphertext):
@@ -454,7 +458,7 @@ def parity(parity_oracle, key):
     parity_oracle function must be implemented
 
     Args:
-        parity_oracle(function)
+        parity_oracle(callable)
         key(RSAKey): contains ciphertexts to decrypt
 
     Returns:
@@ -488,7 +492,7 @@ def parity(parity_oracle, key):
                 lower_bound = (key.n * numerator) / denominator
                 upper_bound = (key.n * (numerator + 1)) / denominator
 
-                log.debug("{} {} [{}, {}]".format(counter, is_odd, long(lower_bound), long(upper_bound)))
+                log.debug("{} {} [{}, {}]".format(counter, is_odd, int(lower_bound), int(upper_bound)))
                 log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator + 1, denominator))
             log.success("Decrypted: {}".format(i2b(upper_bound)))
             key.texts[text_no]['plain'] = upper_bound
@@ -525,8 +529,8 @@ def blinding(key, signing_oracle=None, decryption_oracle=None):
 
     Args:
         key(RSAKey): with at least one plaintext(to sign) or ciphertext(to decrypt)
-        signing_oracle(function)
-        decryption_oracle(function)
+        signing_oracle(callable)
+        decryption_oracle(callable)
 
     Returns:
         dict: {index: signature/plaintext, index2: signature/plaintext}
@@ -584,7 +588,7 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         hash_function(string)
 
     Returns:
-        dict: forged signatures
+        dict: forged signatures, keys are indices in key.texts
         update key texts
     """
     hash_asn1 = {
@@ -608,9 +612,9 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
             if 'plain' in key.texts[text_no] and 'cipher' not in key.texts[text_no]:
                 log.info("Forge for plaintext no {} ({})".format(text_no, key.texts[text_no]['plain']))
 
-                hash = getattr(hashlib, hash_function)(
+                hash_callable = getattr(hashlib, hash_function)(
                     i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
-                plaintext_prefix = "\x00\x01\xff\x00" + hash_asn1[hash_function] + hash
+                plaintext_prefix = "\x00\x01\xff\x00" + hash_asn1[hash_function] + hash_callable
 
                 plaintext = plaintext_prefix + '\x00' * (key.size // 8 - len(plaintext_prefix))
                 plaintext = b2i(plaintext)
@@ -632,9 +636,9 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         for text_no in range(len(key.texts)):
             if 'plain' in key.texts[text_no] and 'cipher' not in key.texts[text_no]:
                 log.info("Forge for plaintext no {} ({})".format(text_no, key.texts[text_no]['plain']))
-                hash = getattr(hashlib, hash_function)(
+                hash_callable = getattr(hashlib, hash_function)(
                     i2b(key.texts[text_no]['plain'])).digest()  # hack to call hashlib.hash_function
-                plaintext_suffix = "\x00" + hash_asn1[hash_function] + hash
+                plaintext_suffix = "\x00" + hash_asn1[hash_function] + hash_callable
                 if b2i(plaintext_suffix) & 1 != 1:
                     log.error("Plaintext suffix is even, can't compute signature")
                     continue
