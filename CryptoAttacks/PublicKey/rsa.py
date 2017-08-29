@@ -209,7 +209,10 @@ class RSAKey:
             RSAKey
         """
         tmp_key = PyRSA.importKey(open(filename).read())
-        return RSAKey(tmp_key.n, tmp_key.e, tmp_key.d, tmp_key.p, tmp_key.q, identifier=identifier)
+        if hasattr(tmp_key, 'p'):
+            return RSAKey(tmp_key.n, tmp_key.e, p=tmp_key.p, identifier=identifier)
+        else:
+            return RSAKey(tmp_key.n, tmp_key.e, identifier=identifier)
 
     def export_key(self, format='PEM', passphrase=None, pkcs=1, *args, **kwargs):
         """Export key as string"""

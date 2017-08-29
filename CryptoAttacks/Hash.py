@@ -195,6 +195,37 @@ def md4(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], pa
     return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
 
 
+def compression_function_md5(chunk, state):
+    """MD5 compression function
+
+    Args:
+        chunk(string): len(chunk) == 64
+        state(list of ints): len(state) == 4
+
+    Returns:
+        list of ints: compressed state
+    """
+
+
+def md5(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], padding=None):
+    """Compute MD5
+
+    Args:
+        data(string)
+        initial_state(list of ints)
+        padding(string/None): if None, padding will be computed
+
+    Returns:
+        digest(string)
+    """
+    if not padding:
+        data = add_md_padding(data, endian='little')
+    else:
+        data += padding
+    final_state = merkle_damgard(data, initial_state, compression_function_md5)
+    return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
+
+
 def length_extension(hash, size, new_message, type='sha1'):
     """Length extension attack: given hash(secret) and len(secret),
     compute new_hash and old_padding so that hash(secret+old_padding+new_message) == new_hash

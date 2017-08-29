@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='CryptoAttacks',
       version='0.1',
@@ -7,6 +7,6 @@ setup(name='CryptoAttacks',
       author='Gros Quildu',
       author_email='e2.8a.95@gmail.com',
       license='MIT',
-      packages=['CryptoAttacks'],
+      packages=find_packages(),
       zip_safe=False,
       install_requires=['pycrypto', 'gmpy2', 'BeautifulSoup'])

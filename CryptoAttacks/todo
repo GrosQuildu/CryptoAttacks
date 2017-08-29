@@ -1,0 +1,6 @@
+update cbc: decryption_oracle take only one block
+from multiprocessing import Pool
+p = Pool(workers_count)
+outputs = p.map(func, inputs)
+
+ecdhe
