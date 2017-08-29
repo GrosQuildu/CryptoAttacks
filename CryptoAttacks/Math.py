@@ -1,6 +1,8 @@
+from builtins import int, range
+from functools import reduce
+
 from CryptoAttacks.Utils import log
 import operator
-
 
 def continued_fractions(n, d):
     fractions = []
@@ -64,7 +66,7 @@ def crt(a, n):
     for n_i, a_i in zip(n, a):
         p = prod / n_i
         sum_crt += a_i * invmod(p, n_i) * p
-    return long(sum_crt % prod)
+    return int(sum_crt % prod)
 
 
 def euler_phi(factors):
@@ -121,7 +123,7 @@ def factors(n):
     """Find factors of n
     from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python
     """
-    return set(reduce(list.__add__, ([i, n//i] for i in xrange(2, int(n**0.5) + 1) if n % i == 0)))
+    return set(reduce(list.__add__, ([i, n//i] for i in range(2, int(n**0.5) + 1) if n % i == 0)))
 
 
 def egcd(*args):
@@ -170,7 +172,7 @@ def tonelli_shanks(n, p):
 
     s = 0
     q = p-1
-    while q&1 == 0:
+    while q & 1 == 0:
         s += 1
         q >>= 1
 
@@ -197,4 +199,3 @@ def tonelli_shanks(n, p):
         c = pow(b, 2, p)
         m = i
     return r
-

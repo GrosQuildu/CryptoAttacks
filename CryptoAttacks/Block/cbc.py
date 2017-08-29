@@ -1,3 +1,6 @@
+from __future__ import print_function
+from builtins import range
+
 from CryptoAttacks.Utils import *
 
 
@@ -38,7 +41,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
             decryption_oracle('B' * block_size)
         except NotImplementedError:
             log.critical_error("decryption_oracle not implemented")
-        except Exception, e:
+        except Exception as e:
             log.critical_error("Error in first call to decryption_oracle: {}".format(e.message))
 
     if padding_oracle:
@@ -46,7 +49,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
             padding_oracle(payload='B'*block_size, iv='A'*block_size)
         except NotImplementedError:
             log.critical_error("padding_oracle not implemented")
-        except Exception, e:
+        except Exception as e:
             log.critical_error("Error in first call to padding_oracle: {}".format(e.message))
 
 
@@ -129,8 +132,8 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
         position_known = chars_decoded
         log.info("Have known plaintext, skip {} block(s) and {} bytes".format(blocks_decoded, chars_decoded))
 
-    for count_block in xrange(len(blocks) - 1, amount, -1):
-        """ Blocks from the last to the second (all except iv)"""
+    for count_block in range(len(blocks) - 1, amount, -1):
+        """ Blocks from the last to the second (all except iv) """
         log.info("Block no. {}".format(count_block))
 
         payload_prefix = ''.join(blocks[:count_block - 1])
@@ -140,11 +143,11 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
         position = block_size - 1 - position_known
         position_known = 0
         while position >= 0:
-            """ Every position in block, from the end"""
+            """ Every position in block, from the end """
             log.debug("Position: {}".format(position))
 
             found_correct_char = False
-            for guess_char in xrange(256):
+            for guess_char in range(256):
                 modified = payload_modify[:position] + chr(guess_char) + payload_modify[position + 1:]
                 payload = ''.join([payload_prefix, modified, payload_decrypt])
 
@@ -176,10 +179,10 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                         position = position - dc + 1
                         is_correct = False
                     else:
-                        """ abcd efgh ijkl o|guess_char|xy  || 1234 5678 9tre qwer - ciphertext
-                            what ever itma ybex             || xyzw rtua lopo k|\x03|\x03\x03 - plaintext
-                            abcd efgh ijkl |guess_char|wxy  || 1234 5678 9tre qwer - next round ciphertext
-                            some thin gels eheh             || xyzw rtua lopo guessing|\x04\x04\x04 - next round plaintext
+                        """ abcd efgh ijkl o|guess_char|xy || 1234 5678 9tre qwer - ciphertext
+                            what ever itma ybex            || xyzw rtua lopo k|\x03|\x03\x03 - plaintext
+                            abcd efgh ijkl |guess_char|wxy || 1234 5678 9tre qwer - next round ciphertext
+                            some thin gels eheh            || xyzw rtua lopo guessing|\x04\x04\x04 - next round plaintext
                         """
                         if position == block_size - 1:
                             """ if we decrypt first byte, check if we didn't hit other padding than \x01 """
@@ -269,11 +272,11 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
 
     # add known plaintext
     if original_plaintext:
-        if original_plaintext > block_size:
+        if len(original_plaintext) > block_size:
             log.info("Cut original plaintext from {} to last {} bytes".format(len(original_plaintext), block_size))
             original_plaintext = original_plaintext[-block_size:]
 
-    for count_block in xrange(len(blocks) - 1, 0, -1):
+    for count_block in range(len(blocks) - 1, 0, -1):
         """ Every block, modify block[count_block-1] to set block[count_block] """
         log.info("Block no. {}".format(count_block))
 

@@ -1,3 +1,5 @@
+from builtins import range
+
 from CryptoAttacks.Utils import *
 
 
@@ -39,7 +41,7 @@ def compression_function_sha1(chunk, state):
     state = state[:]
     w = chunks(chunk, 4)
     w = map(b2i, w)
-    for i in xrange(16, 80):
+    for i in range(16, 80):
         w.append(_left_rotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1, 32))
 
     a = state[0]
@@ -72,7 +74,7 @@ def compression_function_sha1(chunk, state):
     return state
 
 
-def sha1(data, initial_state=[0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0], padding=None):
+def sha1(data, initial_state=None, padding=None):
     """Compute SHA1
 
     Args:
@@ -83,6 +85,9 @@ def sha1(data, initial_state=[0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0x
     Returns:
         digest(string)
     """
+    if initial_state is None:
+        initial_state = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0]
+
     if not padding:
         data = add_md_padding(data, endian='big')
     else:
@@ -176,7 +181,7 @@ def compression_function_md4(chunk, state):
     return state
 
 
-def md4(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], padding=None):
+def md4(data, initial_state=None, padding=None):
     """Compute MD4
 
     Args:
@@ -187,6 +192,9 @@ def md4(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], pa
     Returns:
         digest(string)
     """
+    if initial_state is None:
+        initial_state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476]
+
     if not padding:
         data = add_md_padding(data, endian='little')
     else:
@@ -207,7 +215,7 @@ def compression_function_md5(chunk, state):
     """
 
 
-def md5(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], padding=None):
+def md5(data, initial_state=None, padding=None):
     """Compute MD5
 
     Args:
@@ -218,6 +226,9 @@ def md5(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], pa
     Returns:
         digest(string)
     """
+    if initial_state is None:
+        initial_state = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476]
+
     if not padding:
         data = add_md_padding(data, endian='little')
     else:
@@ -226,12 +237,12 @@ def md5(data, initial_state=[0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476], pa
     return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
 
 
-def length_extension(hash, size, new_message, type='sha1'):
+def length_extension(old_hash, size, new_message, type='sha1'):
     """Length extension attack: given hash(secret) and len(secret),
     compute new_hash and old_padding so that hash(secret+old_padding+new_message) == new_hash
 
     Args:
-        hash(string): hash of secret value
+        old_hash(string): hash of secret value
         size(int): length of secret (in bytes)
         new_message(string)
         type(string): sha1 or md4
@@ -248,9 +259,10 @@ def length_extension(hash, size, new_message, type='sha1'):
         hash_function = md4
     else:
         log.critical_error("Not implemented, type must be one of {}".format(implemented_functions))
+        return None
 
     old_padding = add_md_padding('a' * size, endian=endian)[size:]
     new_data_size = len(new_message)+len(old_padding)+size
     new_padding = add_md_padding('a'*new_data_size, endian=endian)[new_data_size:]
-    h = map(lambda x: b2i(x, endian=endian), chunks(hash, 4))
+    h = map(lambda x: b2i(x, endian=endian), chunks(old_hash, 4))
     return hash_function(new_message, h, new_padding), old_padding+new_message

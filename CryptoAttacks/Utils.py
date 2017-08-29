@@ -251,7 +251,7 @@ def print_chunks(data, delim=' | '):
 
 def random_str(length):
     alphabet = string.printable[:-5]
-    return ''.join([alphabet [random.randint(0, len(alphabet )-1)] for x in xrange(length)])
+    return ''.join([alphabet [random.randint(0, len(alphabet )-1)] for x in range(length)])
 
 
 def random_char():
@@ -259,7 +259,7 @@ def random_char():
 
 
 def random_bytes(amount=1):
-    return ''.join([chr(random.randint(0,255)) for x in xrange(amount)])
+    return ''.join([chr(random.randint(0,255)) for x in range(amount)])
 
 
 def random_prime(bytes=512):

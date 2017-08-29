@@ -1,3 +1,6 @@
+from __future__ import print_function
+from builtins import range
+
 from CryptoAttacks.Math import factors
 from CryptoAttacks.Utils import *
 
@@ -35,7 +38,7 @@ def find_block_size(encryption_oracle, constant=True):
     """Determine block size if ecb mode
 
     Args:
-        encryption_oracle(function)
+        encryption_oracle(callable)
         constant(bool): True if prefix and suffix have constant length
 
     Returns:
@@ -63,10 +66,10 @@ def find_block_size(encryption_oracle, constant=True):
             """send payload of length x, so at least x-1 blocks should be identical"""
             payload = random_char() * (blocks_to_send*block_size)
             enc_chunks = chunks(encryption_oracle(payload), block_size)
-            for x in xrange(len(enc_chunks)-1):
+            for x in range(len(enc_chunks)-1):
                 if enc_chunks[x] == enc_chunks[x+1]:
                     log.debug("Found two identical blocks at {}: {}".format(x, print_chunks(enc_chunks)))
-                    for y in xrange(2, blocks_to_send-1):
+                    for y in range(2, blocks_to_send-1):
                         if enc_chunks[x] != enc_chunks[x+y]:
                             break
                     else:
@@ -78,7 +81,7 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
     """Determine prefix and suffix sizes if ecb mode, sizes must be constant
 
     Args:
-        encryption_oracle(function)
+        encryption_oracle(callable)
         block_size(int)
 
     Returns:
@@ -90,9 +93,9 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
     # log.debug("Encryption of {}".format(payload))
     # log.debug(print_chunks(enc_chunks))
 
-    for position_start in xrange(len(enc_chunks) - 1):
+    for position_start in range(len(enc_chunks) - 1):
         if enc_chunks[position_start] == enc_chunks[position_start + 1]:
-            for y in xrange(2, blocks_to_send - 1):
+            for y in range(2, blocks_to_send - 1):
                 if enc_chunks[position_start] != enc_chunks[position_start + y]:
                     break
             else:
@@ -102,7 +105,7 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
         log.critical_error("Position of controlled chunks not found")
 
     changed_char = chr(ord(payload[0])-1)
-    for aligned_bytes in xrange(block_size):
+    for aligned_bytes in range(block_size):
         payload_new = payload[:aligned_bytes] + changed_char + payload[aligned_bytes+1:]
         enc_chunks_new = chunks(encryption_oracle(payload_new), block_size)
         # log.debug("Encryption of {}".format(payload_new))
@@ -134,7 +137,7 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
     """Given encryption oracle which produce ecb(prefix || our_input || secret), find secret
     
     Args:
-        encryption_oracle(function)
+        encryption_oracle(callable)
         constant(bool): True if prefix have constant length (secret must have constant length)
         block_size(int/None)
         prefix_size(int/None)
@@ -215,9 +218,9 @@ def known_plaintexts(pairs, ciphertext, block_size=16):
         ciphertext_blocks = chunks(pair['cipher'], block_size)
         plaintext_blocks = chunks(pair['plain'], block_size)
         if len(ciphertext_blocks) != len(plaintext_blocks):
-            print pair
-            print ciphertext_blocks, plaintext_blocks
-            print len(ciphertext_blocks), len(plaintext_blocks)
+            print(pair)
+            print(ciphertext_blocks, plaintext_blocks)
+            print(len(ciphertext_blocks), len(plaintext_blocks))
             assert 0
         for cipher_block_no in range(len(ciphertext_blocks)):
             result_mapping[ciphertext_blocks[cipher_block_no]] = plaintext_blocks[cipher_block_no]

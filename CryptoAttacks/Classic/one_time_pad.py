@@ -1,3 +1,7 @@
+from __future__ import print_function
+from __future__ import print_function
+from builtins import range
+
 import itertools
 import os
 import re
@@ -258,8 +262,8 @@ def get_frequencies_dict():
             frequencies[dic_lang].pop('nr')
             sorted_lang = sorted(
                 frequencies[dic_lang].items(), key=operator.itemgetter(1), reverse=True)
-    except Exception, msg:
-        print msg
+    except Exception as msg:
+        print(msg)
     return frequencies
 
 
@@ -332,7 +336,7 @@ def break_one_char_key(ciphertext, lang='English', no_of_comparisons=5, alphabet
     if not alphabet:
         alphabet = string.printable
     if not key_space:
-        key_space = map(chr, xrange(256))
+        key_space = map(chr, range(256))
 
     result = {}
     for key in key_space:
@@ -361,7 +365,7 @@ def guess_key_size(ciphertext, max_key_size=40):
         max_key_size = len(ciphertext)/4
 
     result = {}
-    for key_size in xrange(1, max_key_size):
+    for key_size in range(1, max_key_size):
         blocks = re.findall('.' * key_size, ciphertext, re.DOTALL)
         if len(blocks) < 2:
             break
@@ -430,7 +434,7 @@ def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size
     if not key_size:
         key_size = guess_key_size(ciphertext, max_key_size)[0][0]
 
-    cipher_same_key_char = [ciphertext[i::key_size] for i in xrange(key_size)]
+    cipher_same_key_char = [ciphertext[i::key_size] for i in range(key_size)]
     key = {}
     for position, item in enumerate(cipher_same_key_char):
         key_char = break_one_char_key(item, lang=lang, no_of_comparisons=no_of_comparisons, alphabet=alphabet,
@@ -485,4 +489,4 @@ def break_reuse_key(ciphertexts, lang='English', no_of_comparisons=5, alphabet=N
 def break_rot(ciphertext, alphabet=string.lowercase):
     for rot in range(len(alphabet)):
         tr = string.maketrans(alphabet, ''.join([alphabet[rot:], alphabet[:rot]]))
-        print rot, string.translate(ciphertext, tr)
+        print(rot, string.translate(ciphertext, tr))
