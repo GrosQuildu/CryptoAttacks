@@ -42,7 +42,12 @@ def test_length_extension():
         assert md4(secret + new_data) == new_hash
 
 
-if __name__ == "__main__":
+def run():
+    log.level = 'info'
     test_sha1()
     test_md4()
     test_length_extension()
+
+
+if __name__ == "__main__":
+    run()

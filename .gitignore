@@ -8,6 +8,7 @@ __pycache__/
 
 # Sage compiled
 *_sage.py
+*.sage.py
 
 # C extensions
 *.so
@@ -94,4 +95,3 @@ ENV/
 .spyderproject
 
 # Rope project settings
-

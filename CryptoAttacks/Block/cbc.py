@@ -26,7 +26,7 @@ def decryption_oracle(block):
         block(string): ciphertext to decrypt
 
     Returns:
-        string: decrypted ciphertext (don't strip with padding)
+        string: decrypted ciphertext (with padding)
     """
     raise NotImplementedError
 
@@ -83,7 +83,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
             plaintext.append(decryption_oracle(block))
             if amount !=0 and len(plaintext) == amount:
                 break
-        return ''.join(plaintext[::-1]) 
+        return ''.join(plaintext[::-1])
 
     if block_size % 8 != 0:
         log.critical_error("Incorrect block size: {}".format(block_size))
@@ -252,7 +252,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
             log.critical_error("iv given without original ciphertext")
         ciphertext = 'A' * (len(new_plaintext) + block_size)
     else:
-        ciphertext = original_ciphertext
+        ciphertext = 'A' * (len(new_plaintext) + block_size)
 
     if original_ciphertext and len(original_ciphertext) % block_size != 0:
         log.critical_error("Incorrect original ciphertext length: {}".format(len(original_ciphertext)))
@@ -283,14 +283,17 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         ciphertext_to_decrypt = ''.join(new_ct_blocks[:count_block + 1])
 
         if original_plaintext is None and original_ciphertext is None:
-            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
-                                         block_size=block_size, amount=1, is_correct=False)
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle,
+                                         decryption_oracle=decryption_oracle, block_size=block_size,
+                                         amount=1, is_correct=False)
         elif original_plaintext and original_ciphertext:
-            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
-                                         block_size=block_size, amount=1, is_correct=True, known_plaintext=original_plaintext)
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle,
+                                         decryption_oracle=decryption_oracle, block_size=block_size,
+                                         amount=1, is_correct=True, known_plaintext=original_plaintext)
         else:
-            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle, decryption_oracle=decryption_oracle,
-                                         block_size=block_size, amount=1, is_correct=True)
+            original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle,
+                                         decryption_oracle=decryption_oracle, block_size=block_size,
+                                         amount=1, is_correct=True)
 
         log.info("Set block no. {}".format(count_block))
         new_ct_blocks[count_block - 1] = xor(blocks[count_block - 1], original_plaintext,

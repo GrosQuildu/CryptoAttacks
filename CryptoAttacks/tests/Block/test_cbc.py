@@ -7,8 +7,6 @@ from CryptoAttacks.Block import cbc
 from CryptoAttacks.Utils import *
 
 block_size = AES.block_size
-blocks_with_correct_padding = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'encrypt',
-                                                           b2h('A'*(AES.block_size+2))]).strip())[-2*AES.block_size:]
 
 
 def padding_oracle(payload, iv):
@@ -20,7 +18,11 @@ def padding_oracle(payload, iv):
     return True
 
 
-def decryption_oracle(payload, iv):
+def decryption_oracle(payload):
+    blocks_with_correct_padding = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'encrypt',
+                                                               b2h('A' * (AES.block_size + 2))]).strip())[
+                                  -2 * AES.block_size:]
+    iv = 'A'*AES.block_size
     payload = iv + payload + blocks_with_correct_padding
     plaintext = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'decrypt', b2h(payload)], stderr=None).strip())
     return plaintext[:-(AES.block_size+2)]  # strip 'A'*17

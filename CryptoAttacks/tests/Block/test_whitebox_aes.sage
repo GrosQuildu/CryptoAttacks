@@ -1,5 +1,7 @@
 #!/usr/bin/env sage
 
+import sys
+sys.path.append('../../Block')
 from whitebox_aes_sage import *
 from CryptoAttacks.Utils import *
 
