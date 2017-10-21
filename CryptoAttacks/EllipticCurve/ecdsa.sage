@@ -78,6 +78,9 @@ def recover_d_biased_k(q, messages, signatures, l, hash_function=None):
         signatures(list): [(r,s), (r,s)]
         l(int): amount of bits biased to 0 in k (lsb)
         hash_function(NoneType/callable)
+
+    Returns:
+        private key(int)
     """
     if len(messages) != len(signatures):
         print "Amount of signatures must equal amount of messages"
