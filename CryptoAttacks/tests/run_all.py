@@ -10,18 +10,35 @@ import test_Hash
 
 SAGE_TESTS = True
 
+print("TEST BLOCK CIPHERS")
 os.chdir('./Block/')
+
+print("Test ecb")
 test_ecb.run()
+
+print("\nTest cbc")
 test_cbc.run()
+
+print("\nTest whitebox aes")
 if SAGE_TESTS:
-    print(subprocess.check_output(["sage", "./test_whitebox_aes.sage"]))
+    subprocess.call(["sage", "./test_whitebox_aes.sage"])
+print("\n")
+# --------------------------------------------------
 
+print("TEST PUBLIC KEY")
 os.chdir('../PublicKey/')
+print("Test rsa")
 test_rsa.run()
+print("\n")
+# --------------------------------------------------
 
+print("TEST HASH")
 os.chdir('../')
 test_Hash.run()
+print("\n")
+# --------------------------------------------------
 
-os.chdir('../EllipticCurve')
+print("TEST ELLIPTIC CURVES")
+os.chdir('./EllipticCurve')
 if SAGE_TESTS:
-    print(subprocess.check_output(["sage", "./test_ecdsa.sage"]))
+    subprocess.call(["sage", "./test_ecdsa.sage"])
