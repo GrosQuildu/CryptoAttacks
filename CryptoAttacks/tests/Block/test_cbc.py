@@ -7,58 +7,7 @@ from CryptoAttacks.Block import cbc
 from CryptoAttacks.Utils import *
 from random import randint
 
-
-block_size = AES.block_size
-KEY = 'asdf'*4
-iv_as_key = False
-
-
-class BadPadding(RuntimeError):
-    pass
-
-
-def encrypt(data, iv_as_key=False):
-    iv = ''.join(random_bytes(AES.block_size))
-    if iv_as_key:
-        iv = KEY
-    aes = AES.new(KEY, AES.MODE_CBC, iv)
-    return iv+aes.encrypt(add_padding(data))
-
-
-def decrypt(data, iv_as_key=False):
-    if iv_as_key:
-        iv = KEY
-    else:
-        iv = data[:AES.block_size]
-        data = data[AES.block_size:]
-    aes = AES.new(KEY, AES.MODE_CBC, iv)
-    p = aes.decrypt(data)
-    try:
-        p = strip_padding(p, AES.block_size)
-        return p
-    except:
-        raise BadPadding
-
-
-def padding_oracle(payload, iv):
-    global iv_as_key
-    payload = iv + payload
-    try:
-        decrypt(payload, iv_as_key)
-    except BadPadding:
-        return False
-    return True
-
-
-blocks_with_correct_padding = encrypt('A' * (AES.block_size + 5))[AES.block_size:]
-def decryption_oracle(payload):
-    global iv_as_key
-    iv = 'A' * AES.block_size
-    payload = iv + payload + blocks_with_correct_padding
-    plaintext = decrypt(payload, iv_as_key)
-    if iv_as_key:
-        return xor(plaintext[AES.block_size:AES.block_size*2], iv)
-    return xor(plaintext[:AES.block_size], iv)
+from cbc_oracles import *
 
 
 # USE EXTERNAL PROGRAMS AS PADDING ORACLE
