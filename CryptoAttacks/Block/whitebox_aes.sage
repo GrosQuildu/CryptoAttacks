@@ -240,14 +240,14 @@ Sbox_inv = (
 0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D)
 Rcon = (0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a)
 
-mix_columns_matrixx = [
+mix_columns_matrix = [
     2, 3, 1, 1,
     1, 2, 3, 1,
     1, 1, 2, 3,
     3, 1, 1, 2
 ]
 
-inv_mix_columns_matrixx = [
+inv_mix_columns_matrix = [
     14, 11, 13, 9,
     9, 14, 11, 13,
     13, 9, 14, 11,
@@ -313,6 +313,17 @@ def inv_shift_rows(state):
 
 
 def sub_bytes(state):
+    """
+    0   4   8   12
+    1   5   9   13
+    2   6   10  14
+    3   7   11  15
+
+    Sbox[0]   Sbox[4]   Sbox[8]   Sbox[12]
+    Sbox[1]   Sbox[5]   Sbox[9]   Sbox[13]
+    Sbox[2]   Sbox[6]   Sbox[10]  Sbox[14]
+    Sbox[3]   Sbox[7]   Sbox[11]  Sbox[15]
+    """
     new_state = []
     for i in xrange(state.dimensions()[0]):
         new_state.append([Sbox[state[i][j]] for j in xrange(state.dimensions()[1])])
@@ -336,7 +347,14 @@ def mix_column(col):
 
 
 def mix_columns(m):
-    return matrix(map(mix_column, m.columns()))
+    """
+    for all columns:
+    |d0|   |2 3 1 1|   |c0|
+    |d1| = |1 2 3 1| * |c1|
+    |d2|   |1 1 2 3|   |c2|
+    |d3|   |3 1 1 2|   |c3|
+    """
+    return matrix(map(mix_column, m.columns())).transpose()
 
 
 def inverse_mix_column(col):
@@ -365,6 +383,9 @@ def key_schedule_once(key, no):
 
 
 def key_schedule(key):
+    """
+    returns 11 round keys as 4x4 matrices
+    """
     round_keys = [[]] * 11
     round_keys[0] = key
     for no in xrange(1, 11):
@@ -386,10 +407,40 @@ def inv_key_schedule_once(key, round_no):
 
 
 def inv_key_schedule(key, round_no=10):
+    """
+    returns aes key from given round key
+    """
     for x in xrange(round_no):
         key = inv_key_schedule_once(key, round_no - x)
     return key
 
+
+def add_round_key(state, round_key):
+    return xor_matrices(state, round_key)
+
+
+def encrypt(state, key):
+    """ Standard AES-128 encryption
+    State: 4x4 matrix
+    Key: 4x4 matrix
+    """
+    round_keys = key_schedule(key)
+    # initial round
+    state = add_round_key(state, round_keys[0])
+
+    # rounds
+    for round_no in xrange(1, 10):
+        state = sub_bytes(state)
+        state = shift_rows(state)
+        state = mix_columns(state)
+        state = add_round_key(state, round_keys[round_no])
+
+    # final round
+    state = sub_bytes(state)
+    state = shift_rows(state)
+    state = add_round_key(state, round_keys[-1])
+
+    return state
 
 def round(state, no, Tboxes, Tyboxes, TTyboxesComposed=None):
     state = shift_rows(state)
@@ -430,13 +481,13 @@ def round(state, no, Tboxes, Tyboxes, TTyboxesComposed=None):
     return state
 
 
-def encrypt(state, Tboxes, Tyboxes, TTyboxesComposed=None, TTyboxFinal=None):
+def encrypt_whitebox(state, Tboxes, Tyboxes, TTyboxesComposed=None, TTyboxFinal=None):
     """
     state: matrix(4x4), plaintext
     Tboxes: T[round_no][byte_no][x] = Sbox[x ^^ shift_rows(k[round_no][byte_no])] -> 10*16*256
     Tyboxes: Ty[byte_in_column_no][x] -> 4*256
     TTyboxesComposed: TTyboxesComposed[round_no][byte_no][x] = Ty[byte_no%4][ T[round_no][byte_no][x] ] -> 9*16*256
-    TTyboxFinal: Sbox[x ^^ shift_rows(k[last_round][byte_no])]
+    TTyboxFinal: Sbox[x ^^ shift_rows(k[last_round][byte_no])], if None Tboxes[-1] is used
     """
     if TTyboxFinal is None:
         TTyboxFinal = Tboxes[-1]
@@ -457,10 +508,10 @@ def generate_tyboxes():
         tmp = []
         for j in xrange(256):
             mi = []
-            mi.append(mulby[mix_columns_matrixx[i + 0]][j])
-            mi.append(mulby[mix_columns_matrixx[i + 4]][j])
-            mi.append(mulby[mix_columns_matrixx[i + 8]][j])
-            mi.append(mulby[mix_columns_matrixx[i + 12]][j])
+            mi.append(mulby[mix_columns_matrix[i + 0]][j])
+            mi.append(mulby[mix_columns_matrix[i + 4]][j])
+            mi.append(mulby[mix_columns_matrix[i + 8]][j])
+            mi.append(mulby[mix_columns_matrix[i + 12]][j])
             tmp.append((mi[3] << 24) | (mi[2] << 16) | (mi[1] << 8) | mi[0])
         Ty.append(tmp)
     return Ty
@@ -495,6 +546,22 @@ def compose_T_Ty_boxes(Tboxes, Tyboxes):
     return TTyboxesComposed
 
 
+def generate_boxes(key):
+    """Returns boxes used by whitebox AES:
+    T-boxes
+    Ty tables
+    composed T and Ty boxes
+    final (last) composed T box
+
+    for dfa attack you need only last two
+    """
+    T = generate_tboxes(key)
+    Ty = generate_tyboxes()
+    TTy_composed = compose_T_Ty_boxes(T, Ty)
+    TTyboxFinal = T[-1]
+    return T, Ty, TTy_composed, TTyboxFinal
+
+
 def recover_key_unprotected_wbaes(TTyboxesComposed, Tyboxes):
     x = 1
     scrambled_key = []
@@ -512,7 +579,7 @@ def recover_key_unprotected_wbaes(TTyboxesComposed, Tyboxes):
     return key
 
 
-def recover_key_from_TTyboxFinal(TTyboxFinal, probes=3):
+def recover_key_unprotected_wbaes_from_TTyboxFinal(TTyboxFinal, probes=3):
     key = []
     for i in xrange(16):
         Ti = TTyboxFinal[i]
@@ -562,29 +629,31 @@ def generate_faults(TTyboxesComposed, TTyboxFinal, group_no, trials):
         D H L P
 
         Ty[0] <- fault in row 0 (in place of A, E, I or M)
-        if fault is in any other row (position == 4*group_no + row_no), the equations in dfa need to be changed (mulby[mix_columns_matrixx[(4*group_no)+2]] etc)
-        for row == 1, mix_columns_matrixx will be:
+        if fault is in any other row (position == 4*group_no + row_no), the equations in dfa need to be changed (mulby[mix_columns_matrix[(4*group_no)+2]] etc)
+        for row == 1, mix_columns_matrix will be:
         2, 3, 1, 1 -> 3, 1, 1, 2
         1, 2, 3, 1 -> 2, 3, 1, 1
         1, 1, 2, 3 -> 1, 2, 3, 1
         3, 1, 1, 2 -> 1, 1, 2, 3
         '''
 
-        # faulty encryption
-        ciphertext = encrypt(plaintext, None, None, TTyboxesComposed, TTyboxFinal)
+        # faulty encrypt_whiteboxion
+        ciphertext = encrypt_whitebox(plaintext, None, None, TTyboxesComposed, TTyboxFinal)
         ciphertexts_with_faults.append(ciphertext)
 
         # unfault
         TTyboxesComposed[8][position] = TTyboxesComposed_copy
 
     # normal ciphertext
-    ciphertext_original = encrypt(plaintext, None, None, TTyboxesComposed, TTyboxFinal)
+    ciphertext_original = encrypt_whitebox(plaintext, None, None, TTyboxesComposed, TTyboxFinal)
 
     return ciphertext_original, ciphertexts_with_faults
 
 
-def dfa(TTyboxesComposed, TTyboxFinal, trials=5, key=None):
+def dfa(TTyboxesComposed, TTyboxFinal, trials=5):
     """
+    Differential fault analysis attack on whitebox AES-128
+
     k' = shift_rows(k)
 
     A ... ... ...
@@ -605,9 +674,6 @@ def dfa(TTyboxesComposed, TTyboxFinal, trials=5, key=None):
     ... ... S[ X   + S[B+k'8,1]   + 2.S[C+k'8,2] + 3.S[D+k'8,3] + k'9,10 ] + k10,10
     ... S[ 3.X + S[B+k'8,1]   + S[C+k'8,2]   + 2.S[D+k'8,3] + k'9,13 ] + k10,13
     """
-    if key is None:
-        key = {}
-
     key = {}
     groups = [
         [0, 7, 10, 13],
@@ -627,16 +693,16 @@ def dfa(TTyboxesComposed, TTyboxFinal, trials=5, key=None):
             key_candidates = {x: set() for x in group}
             for Z in xrange(256):
                 for Y0 in xrange(256):
-                    if O[0] ^^ Op[0] == Sbox[Y0] ^^ Sbox[mulby[mix_columns_matrixx[(4 * group_no) + 0]][Z] ^^ Y0]:
+                    if O[0] ^^ Op[0] == Sbox[Y0] ^^ Sbox[mulby[mix_columns_matrix[(4 * group_no) + 0]][Z] ^^ Y0]:
                         for Y1 in xrange(256):
                             if O[1] ^^ Op[1] == Sbox[Y1] ^^ Sbox[
-                                                mulby[mix_columns_matrixx[(4 * group_no) + 1]][Z] ^^ Y1]:
+                                                mulby[mix_columns_matrix[(4 * group_no) + 1]][Z] ^^ Y1]:
                                 for Y2 in xrange(256):
                                     if O[2] ^^ Op[2] == Sbox[Y2] ^^ Sbox[
-                                                        mulby[mix_columns_matrixx[(4 * group_no) + 2]][Z] ^^ Y2]:
+                                                        mulby[mix_columns_matrix[(4 * group_no) + 2]][Z] ^^ Y2]:
                                         for Y3 in xrange(256):
                                             if O[3] ^^ Op[3] == Sbox[Y3] ^^ Sbox[
-                                                                mulby[mix_columns_matrixx[(4 * group_no) + 3]][
+                                                                mulby[mix_columns_matrix[(4 * group_no) + 3]][
                                                                     Z] ^^ Y3]:
                                                 key_candidates[group[0]].add(O[0] ^^ Sbox[Y0])
                                                 key_candidates[group[1]].add(O[1] ^^ Sbox[Y1])
@@ -655,7 +721,7 @@ def dfa(TTyboxesComposed, TTyboxFinal, trials=5, key=None):
 
     if any(len(key[position]) > 1 for position in xrange(16)):
         print 'Key not recovered, trying with trials={}'.format(trials + 3)
-        return dfa(TTyboxesComposed, TTyboxFinal, trials=trials + 3, key=key)
+        return dfa(TTyboxesComposed, TTyboxFinal, trials=trials + 3)
 
     key = array_to_matrix([key[position].pop() for position in xrange(16)])
     return inv_key_schedule(key)
