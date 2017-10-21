@@ -15,15 +15,18 @@ class LCG(object):
     def prev(self):
         """Returns previous state"""
 
+    @staticmethod
+    def compute_params(s, m=None, a=None, b=None):
+        """Compute parameters and initial seed for LCG prng
+        next_state = a*seed + b mod m
 
-def compute_params(s):
-    """Compute parameters and initial seed for LCG prng
+        Args:
+            s(list): subsequent outputs from LCG oracle
+            m(int/None)
+            a(int/None)
+            b(int/None)
 
-    Args:
-        s(list): subsequent outputs from LCG oracle
-
-    Returns:
-        seed(int): assuming first state in s was derived from seed
-        a, b, m(ints): a,b,m(ints): next_state = a*seed + b mod m
-    """
+        Returns:
+            seed, a, b, m(int): assuming first state in s was derived from seed
+        """
 ```
