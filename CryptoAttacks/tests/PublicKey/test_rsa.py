@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from builtins import range, int
+from builtins import range, int, pow
 
 import os
 import subprocess
@@ -11,7 +11,7 @@ from CryptoAttacks.PublicKey.rsa import *
 from CryptoAttacks.Utils import *
 from CryptoAttacks.Math import *
 
-key_to_oracle = None
+from rsa_oracles import *
 
 
 def test_RSAKey():
@@ -21,7 +21,7 @@ def test_RSAKey():
     assert key2.n == key.n
 
     key2 = RSAKey(key.n, key.e, d=key.d)
-    assert key2.p == key.p
+    assert key2.p == key.p or key2.q == key.p
 
     key2 = RSAKey(key.n, key.e, p=key.q)
     assert key2.d == key.d
@@ -36,6 +36,15 @@ def test_small_e_msg():
     print("\nTest: small_e_msg")
     for _ in range(10):
         plaintext = b2i(random_str(10))
+        ciphertext = key.encrypt(plaintext)
+        key.add_ciphertext(ciphertext)
+        recovered_plaintext = small_e_msg(key)
+        assert len(recovered_plaintext) == 1
+        assert recovered_plaintext[0] == plaintext
+        key.clear_texts()
+
+    for _ in range(10):
+        plaintext = b2i(random_str(43))
         ciphertext = key.encrypt(plaintext)
         key.add_ciphertext(ciphertext)
         recovered_plaintext = small_e_msg(key)
@@ -123,7 +132,7 @@ def test_common_primes():
 def test_hastad():
     print("\nTest: hastad")
     for n_size in [1024, 2048, 4096]:
-        for e in [3, 17, 49]:
+        for e in [3, 17]:
             print("Test: e={}".format(e))
             msg = randint(1000, 1 << (n_size-25))
             keys = []
@@ -166,20 +175,8 @@ def test_faulty():
         assert key_recovered is None
 
 
-def parity_oracle(ciphertext):
-    global key_to_oracle
-    ciphertext = i2b(ciphertext)
-    message = subprocess.check_output(["python", "./rsa_oracles.py", "parity", key_to_oracle.identifier,
-                                       b2h(ciphertext)]).strip()
-    if message == '1':
-        return 1
-    return 0
-
-
 def test_parity():
     key = RSAKey.import_key("private_key_1024.pem")
-    global key_to_oracle
-    key_to_oracle = key
 
     print("\nTest: parity")
     plaintext1 = "Some plaintext " + random_str(10) + " anything can it be"
@@ -191,11 +188,10 @@ def test_parity():
 
     key.texts.append({'cipher': b2i(ciphertext1)})
     key.texts.append({'cipher': b2i(ciphertext2)})
-    msgs_recovered = parity(parity_oracle, key)
+    msgs_recovered = parity(parity_oracle, key.publickey())
     assert msgs_recovered[0] == b2i(plaintext1)
     assert msgs_recovered[1] == b2i(plaintext2)
     key.texts = []
-    key_to_oracle = None
 
 
 def test_bleichenbacher_signature_forgery():

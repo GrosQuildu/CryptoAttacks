@@ -35,12 +35,13 @@ def verify(message, signature, key):
     return False
 
 
-def parity_oracle(ciphertext, key):
+def parity_oracle(ciphertext):
+    key = RSAKey.import_key("private_key_1024.pem")
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)
     if message & 1 == 1:
-        return '1'
-    return '0'
+        return 1
+    return 0
 
 
 def verify_bleichenbacher_suffix(message, signature, key, hash_function='sha1'):
@@ -110,7 +111,7 @@ if __name__ == '__main__':
         print(verify(h2b(sys.argv[3]), h2b(sys.argv[4]), key))
 
     elif sys.argv[1] == 'parity':
-        print(parity_oracle(h2b(sys.argv[3]), key))
+        print(parity_oracle(h2b(sys.argv[3])))
 
     elif sys.argv[1] == 'verify_bleichenbacher_suffix':
         message = h2b(sys.argv[3])

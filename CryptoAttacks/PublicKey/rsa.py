@@ -1,5 +1,5 @@
 from __future__ import print_function
-from builtins import range, int
+from builtins import range, int, pow
 
 import itertools
 from copy import deepcopy
@@ -265,7 +265,7 @@ def small_e_msg(key, ciphertexts=None, max_times=100):
             msg, is_correct = gmpy2.iroot(ciphertext + times, key.e)
             if is_correct and pow(msg, key.e, key.n) == ciphertext:
                 msg = int(msg)
-                log.success("Found msg: {}, times=={}".format(i2b(msg), times))
+                log.success("Found msg: {}, times=={}".format(i2b(msg), times//key.n))
                 recovered.append(msg)
                 break
             times += key.n
@@ -494,7 +494,7 @@ def parity(parity_oracle, key):
 
                 log.debug("{} {} [{}, {}]".format(counter, is_odd, int(lower_bound), int(upper_bound)))
                 log.debug("{}/{}  -  {}/{}\n".format(numerator, denominator, numerator + 1, denominator))
-            log.success("Decrypted: {}".format(i2b(upper_bound)))
+            log.success("Decrypted: {}".format(i2h(upper_bound)))
             key.texts[text_no]['plain'] = upper_bound
             recovered[text_no] = upper_bound
     return recovered
@@ -620,7 +620,7 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
                 plaintext = b2i(plaintext)
                 for round_error in range(-5, 5):
                     signature, _ = gmpy2.iroot(plaintext, key.e)
-                    signature = int(signature) + round_error
+                    signature = int(signature + round_error)
                     test_prefix = i2b(pow(signature, key.e, key.n), size=key.size)[:len(plaintext_prefix)]
                     if test_prefix == plaintext_prefix:
                         log.info("Got signature: {}".format(signature))

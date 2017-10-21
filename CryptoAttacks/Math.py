@@ -1,4 +1,4 @@
-from builtins import int, range
+from builtins import int, range, pow
 from functools import reduce
 
 from CryptoAttacks.Utils import log
