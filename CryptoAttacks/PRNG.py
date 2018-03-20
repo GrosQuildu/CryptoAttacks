@@ -55,7 +55,7 @@ class LCG(object):
                 a = (s[3] - s[1]) * invmod(s[2] - s[0], m)
             else:
                 log.critical_error("a not found")
-            log.succes("a = {}".format(a))
+            log.success("a = {}".format(a))
 
         if b is None:
             b = (s[1] - s[0] * a) % m
