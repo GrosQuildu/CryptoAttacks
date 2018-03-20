@@ -34,17 +34,24 @@ class LCG(object):
         next_state = a*seed + b mod m
 
         Args:
-            s(list): subsequent outputs from LCG oracle
+            s(list): subsequent outputs from LCG oracle starting with seed. If seed is unknown then s = [None, state1, stat2...]
             m(int/None)
             a(int/None)
             b(int/None)
 
         Returns:
-            seed, a, b, m(int): assuming first state in s was derived from seed
+            seed, a, b, m(int)
         """
+        if s[0] is None:
+            seed_unknown = True
+            s = s[1:]
+        else:
+            seed_unknown = False
+            seed = s[0]
+            
         if m is None:
-            t = [s[n + 1] - s[n] for n in xrange(len(s) - 1)]
-            u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in xrange(len(t) - 2)]
+            t = [s[n + 1] - s[n] for n in range(len(s) - 1)]
+            u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in range(len(t) - 2)]
             m = gcd(*u)
             log.success("m = {}".format(m))
 
@@ -56,11 +63,13 @@ class LCG(object):
             else:
                 log.critical_error("a not found")
             log.success("a = {}".format(a))
-
+            
         if b is None:
-            b = (s[1] - s[0] * a) % m
-            log.success("b = {}".format(b))
-
-        seed = (((s[0] - b) % m) * invmod(a, m)) % m
-        log.success("seed = {}".format(seed))
+                b = (s[1] - s[0] * a) % m
+                log.success("b = {}".format(b))
+        
+        if seed_unknown:
+            seed = (((s[0] - b) % m) * invmod(a, m)) % m
+            log.success("seed = {}".format(seed))
+ 
         return seed, a, b, m
