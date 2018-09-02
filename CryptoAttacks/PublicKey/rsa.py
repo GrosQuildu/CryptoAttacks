@@ -453,13 +453,15 @@ def parity_oracle(ciphertext):
     raise NotImplementedError
 
 
-def parity(parity_oracle, key):
+def parity(parity_oracle, key, min_lower_bound=None, max_upper_bound=None):
     """Given oracle that returns LSB of decrypted ciphertext we can decrypt whole ciphertext
     parity_oracle function must be implemented
 
     Args:
         parity_oracle(callable)
         key(RSAKey): contains ciphertexts to decrypt
+        min_lower_bound(None/int)
+        max_upper_bound(None/int)
 
     Returns:
         dict: decrypted ciphertexts
@@ -486,7 +488,17 @@ def parity(parity_oracle, key):
                 numerator *= 2
                 counter += 1
 
-                is_odd = parity_oracle(cipher)
+                if upper_bound > max_upper_bound:
+                    is_odd = 0
+                else:
+                    is_odd = parity_oracle(cipher)
+
+                # todo: check below
+                if lower_bound < min_upper_bound:
+                    is_odd = 1
+                else:
+                    is_odd = parity_oracle(cipher)
+
                 if is_odd:  # plaintext > n/(2**counter)
                     numerator += 1
                 lower_bound = (key.n * numerator) / denominator
