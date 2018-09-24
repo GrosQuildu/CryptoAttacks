@@ -488,16 +488,14 @@ def parity(parity_oracle, key, min_lower_bound=None, max_upper_bound=None):
                 numerator *= 2
                 counter += 1
 
-                if upper_bound > max_upper_bound:
+                if max_upper_bound is not None and upper_bound > max_upper_bound:
                     is_odd = 0
                 else:
-                    is_odd = parity_oracle(cipher)
-
-                # todo: check below
-                if lower_bound < min_upper_bound:
-                    is_odd = 1
-                else:
-                    is_odd = parity_oracle(cipher)
+                    # todo: check below
+                    if min_lower_bound is not None and lower_bound < min_lower_bound:
+                        is_odd = 1
+                    else:
+                        is_odd = parity_oracle(cipher)
 
                 if is_odd:  # plaintext > n/(2**counter)
                     numerator += 1
