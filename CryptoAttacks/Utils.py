@@ -1,6 +1,7 @@
-#!/usr/bin/env python
-
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import random
 import string
 import gmpy2
@@ -9,7 +10,7 @@ from numbers import Number
 import hashlib
 
 import requests
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 
 class Log(object):

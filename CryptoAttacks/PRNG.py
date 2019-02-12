@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from CryptoAttacks.Utils import log
 from CryptoAttacks.Math import gcd, invmod
 

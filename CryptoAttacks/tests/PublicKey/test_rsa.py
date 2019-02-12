@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 from builtins import range, int, pow
 
 import os
@@ -228,11 +231,14 @@ def test_bleichenbacher_signature_forgery():
         forged_signatures = bleichenbacher_signature_forgery(key, garbage='middle', hash_function='sha1')
         print(forged_signatures)
 
+        # first plaintext signed
         if 0 in forged_signatures:
             verify_signature1 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_middle",
                                                          key.identifier, b2h(message1), i2h(forged_signatures[0]),
                                                          'sha1']).strip()
             assert verify_signature1 == 'True'
+
+        # second plaintext signed
         if 1 in forged_signatures:
             verify_signature2 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_middle",
                                                          key.identifier, b2h(message2), i2h(forged_signatures[1]),

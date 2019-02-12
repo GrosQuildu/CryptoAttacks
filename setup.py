@@ -18,4 +18,8 @@ setup(name='CryptoAttacks',
         packages=find_packages(),
         zip_safe=False,
         cmdclass={'build_py': build_py},
-        install_requires=['future', 'pycrypto', 'gmpy2', 'BeautifulSoup', 'requests'])
+        install_requires=('future', 'pycrypto', 'gmpy2', 'BeautifulSoup4', 'requests'),
+        classifiers=('Programming Language :: Python :: 2.7',
+                     'Programming Language :: Python :: 3',
+                     'License :: OSI Approved :: MIT License')
+)

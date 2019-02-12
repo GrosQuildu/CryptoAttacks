@@ -4,3 +4,40 @@ p = Pool(workers_count)
 outputs = p.map(func, inputs)
 
 ecdhe
+
+rsa parity oracle -> as on hacklu/hitcon, with substracting (from lsb) + lsb oracle
+pailier stuff maybe?
+
+solver for crt with non-coprime modulis
+https://www.ias.ac.in/article/fulltext/reso/020/03/0206-0216
+
+def crt_non_coprime(a, n):
+    while len(n) > 1:
+        g, u, v = egcd(n[0], n[1])
+
+        if (a[0] - a[1]) % g != 0:
+            print('Not satisfied: gcd(ni, nj) | ai - aj\ngcd({}, {}) | {} - {}'.format(n[0], n[1], a[0], a[1]))
+            return None
+
+        w = (a[0] - a[1]) // g
+        l = lcm(n[0], n[1])
+        x = (a[0] - n[0]*u*w) % l
+
+        n = n[2:]
+        n.insert(0, l)
+        a = a[2:]
+        a.insert(0, x)
+
+    return int(a[0] % n[0])
+
+RSA
+when you can give p and q, but e and d are unknown:
+    p^e == 0 %p  |
+    p^e == 1 %q  ->  p^e == p % p*q
+(as in dragon ctf 2018)
+
+
+singular curves - logaritm
+https://crypto.stackexchange.com/questions/61302/how-to-solve-this-ecdlp
+~/Informatics/hax/ctf/monte_cristo_2018/hxp2/crypto/curve12833227/solve.py
+

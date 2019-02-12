@@ -32,9 +32,9 @@ class RSAKey(Crypto.PublicKey.RSA._RSAobj):
     def add_text_pair(self, ciphertext=None, plaintext=None):
         """Args: ciphertext(int), plaintext(int)"""
 
-    def clear_texts(self)
+    def clear_texts(self):
 
-    def print_texts(self)
+    def print_texts(self):
 
     def generate(identifier=None, *args, **kwargs):
         """
@@ -70,6 +70,10 @@ class RSAKey(Crypto.PublicKey.RSA._RSAobj):
         """
 
 
+def factors_from_d(n, e, d):
+    """Factorize n to p and q given e and d"""
+
+    
 def small_e_msg(key, max_times=100):
     """If both e and plaintext are small, ciphertext may exceed modulus only a little
 
@@ -167,7 +171,7 @@ def parity(parity_oracle, key):
 
 
 def signing_oracle(plaintext):
-    """Function implementing parity oracle
+    """Function implementing signing oracle
 
     Args:
         plaintext(int)
@@ -179,7 +183,7 @@ def signing_oracle(plaintext):
 
 
 def decryption_oracle(ciphertext):
-    """Function implementing parity oracle
+    """Function implementing decryption oracle
 
     Args:
         ciphertext(int)
@@ -214,7 +218,7 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         hash_function(string)
 
     Returns:
-        dict: forged signatures
+        dict: forged signatures, signatures[no] == signature(key.texts[no]['plain'])
         update key texts
     """
 

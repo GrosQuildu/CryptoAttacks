@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 from builtins import range, int, pow
 
 import itertools
@@ -23,6 +26,8 @@ class RSAKey:
             p(long): First factor of n
             q(long): Second factor of n
             texts(list): list of dicts [{'cipher': 12332, 'plain': 65432423}, {'cipher': 0xffaa, 'plain': 0xbb11}]
+                in encryption context, cipher == enc(plain)
+                in signing context, cipher == sign(plain) 
             identifier(string/None): unique identifier of key
 
             self.size(int): bit size
@@ -224,6 +229,7 @@ class RSAKey:
 
 
 def factors_from_d(n, e, d):
+    """Factorize n to p and q given e and d"""
     k = e * d - 1
     while True:
         g = random.randint(2, n - 2)
@@ -511,7 +517,7 @@ def parity(parity_oracle, key, min_lower_bound=None, max_upper_bound=None):
 
 
 def signing_oracle(plaintext):
-    """Function implementing parity oracle
+    """Function implementing signing oracle
 
     Args:
         plaintext(int)
@@ -523,7 +529,7 @@ def signing_oracle(plaintext):
 
 
 def decryption_oracle(ciphertext):
-    """Function implementing parity oracle
+    """Function implementing decryption oracle
 
     Args:
         ciphertext(int)
@@ -598,7 +604,7 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         hash_function(string)
 
     Returns:
-        dict: forged signatures, keys are indices in key.texts
+        dict: forged signatures, signatures[no] == signature(key.texts[no]['plain'])
         update key texts
     """
     hash_asn1 = {
