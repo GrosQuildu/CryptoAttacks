@@ -136,3 +136,48 @@ def recover_d_biased_k(q, messages, signatures, l, hash_function=None):
     else:
         print 'Not found'
         return None
+
+
+def dsks(G, message, signature, Q, hash_function):
+    """Duplicate-Signature Key Selection in ECDSA
+    Create key pair and domain parameter G that verifies given signature
+
+    So if we have someone public key Q and signature (r,s) of some message signed
+    with corresponding private key we can create new key pair that will verify
+    the signature IF we also change base point G 
+
+
+    Args:
+        G(EllipticCurvePoint_finite_field): base point
+        message(int/arg for hash_function)
+        signature(tuple(int)): (r,s), signature of m
+        Q(int): public key
+        hash_function(NoneType/callable)
+
+    Returns:
+        G'(EllipticCurvePoint_finite_field): new base point
+        d'(int): new private key
+        Q'(EllipticCurvePoint_finite_field): new public key, Q = d*G
+    """
+    m = message
+    r, s = map(int, signature)
+
+    if hash_function is None:
+        u1 = (m * inverse_mod(s, G.order())) % G.order()
+    else:
+        u1 = (hash_function(m) * inverse_mod(s, G.order())) % G.order()
+    u2 = (r * inverse_mod(s, G.order())) % G.order()
+    R = u1*G + u2*Q
+
+    d_p = randint(1, G.order()-1)
+    t = u1 + u2*d_p
+    G_p = R * inverse_mod(t, G.order())
+    Q_p = d_p * G_p
+    if verify(message, signature, G_p, Q_p, hash_function):
+        return G_p, d_p, Q_p
+
+    R = u1*G - u2*Q  # lose of y in ledder
+    G_p = R * inverse_mod(t, G.order())
+    Q_p = d_p * G_p
+    G_p.order = G.order()
+    return G_p, d_p, Q_p
