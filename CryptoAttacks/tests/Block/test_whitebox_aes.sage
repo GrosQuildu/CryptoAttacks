@@ -1,7 +1,7 @@
 #!/usr/bin/env sage
 
 import sys
-from CryptoAttacks.Block.whitebox_aes import *
+from CryptoAttacks.Block.whitebox_aes_sage import *
 from CryptoAttacks.Utils import *
 
 

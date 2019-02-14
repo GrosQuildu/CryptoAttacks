@@ -1,5 +1,5 @@
 import sys
-from CryptoAttacks.EllipticCurve.ecdsa import *
+from CryptoAttacks.EllipticCurve.ecdsa_sage import *
 
 from hashlib import sha1
 from CryptoAttacks.Utils import i2b, b2i

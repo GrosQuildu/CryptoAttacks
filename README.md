@@ -1,11 +1,20 @@
 # Cryptography attacks
 
 ### Requirements:
-* Python 2.7
-* gmpy2
+* Python 2.7 or 3.7
+* future
 * [pycrypto](https://pypi.python.org/pypi/pycrypto)
-* BeautifulSoup
+* gmpy2
+* BeautifulSoup4
 * requests
+* termcolor
+
+### Installation:
+```
+git clone https://github.com/GrosQuildu/CryptoAttacks
+cd CryptoAttacks
+pip install .
+```
 
 ### Attacks:
 (* means Sage script)
@@ -55,4 +64,11 @@ To change verbosity:
 from CryptoAttacks.Utils import log
 
 log.level = 'debug'  # debug, info, success
+```
+
+Most functions takes and returns bytes (not str), to use with python2 do:
+```python
+from builtings import bytes
+
+arg = bytes(b'some arg')
 ```
