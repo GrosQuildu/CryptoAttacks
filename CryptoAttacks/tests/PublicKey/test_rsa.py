@@ -9,12 +9,12 @@ from os.path import abspath, dirname
 from os.path import join as join_path
 from random import getrandbits, randint
 
-from CryptoAttacks.Math import crt, gcd, invmod
+from CryptoAttacks.Math import crt, gcd, invmod, product
 from CryptoAttacks.PublicKey.rsa import (RSAKey,
                                          bleichenbacher_signature_forgery,
                                          blinding, common_primes, faulty,
                                          hastad, parity, parity_oracle,
-                                         small_e_msg, wiener)
+                                         small_e_msg, wiener, dsks)
 from CryptoAttacks.tests.PublicKey.rsa_oracles import parity_oracle
 from CryptoAttacks.Utils import (b2h, b2i, h2b, h2i, i2h, log, random_bytes,
                                  random_prime)
@@ -253,8 +253,32 @@ def test_bleichenbacher_signature_forgery():
         key.texts = []
 
 
+def test_dsks():
+    print("Test Duplicate-Signature Key Selection on RSA")
+
+    keys_sizes = [1024, 2048]
+    for key_size in keys_sizes:
+        for j in range(2):
+            print('test {}, key size {}'.format(j, key_size))
+            key = RSAKey.generate(key_size)
+            message = randint(1, key.size - 1)
+            signature = key.decrypt(message)
+
+            n_p, p_order_factors, q_order_factors, e_p, d_p = dsks(message, signature, key.n,
+                                                                smooth_bit_size=20, hash_function=None)
+            key_p = RSAKey(n_p, e=e_p, d=d_p)
+
+            p_p = product(p_order_factors)+1
+            q_p = product(q_order_factors)+1
+
+            assert p_p * q_p == n_p
+            assert key_p.p * key_p.q == n_p
+            assert pow(signature, e_p, n_p) == message
+            assert pow(message, d_p, n_p) == signature  
+
+
 def run():
-    log.level = 'info'
+    log.level = 'debug'
 
     test_RSAKey()
     test_blinding()
@@ -265,6 +289,7 @@ def run():
     test_wiener()
     test_parity()
     test_bleichenbacher_signature_forgery()
+    test_dsks()
 
 if __name__ == "__main__":
     run()

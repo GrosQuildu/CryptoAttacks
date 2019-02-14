@@ -139,10 +139,10 @@ def recover_d_biased_k(q, messages, signatures, l, hash_function=None):
 
 
 def dsks(G, message, signature, Q, hash_function):
-    """Duplicate-Signature Key Selection in ECDSA
+    """Duplicate-Signature Key Selection on ECDSA
     Create key pair and domain parameter G that verifies given signature
 
-    So if we have someone public key Q and signature (r,s) of some message signed
+    So if we have someone's public key Q and signature (r,s) of some message signed
     with corresponding private key we can create new key pair that will verify
     the signature IF we also change base point G 
 
@@ -152,7 +152,7 @@ def dsks(G, message, signature, Q, hash_function):
         message(int/arg for hash_function)
         signature(tuple(int)): (r,s), signature of m
         Q(int): public key
-        hash_function(NoneType/callable)
+        hash_function(NoneType/callable): converting message to int
 
     Returns:
         G'(EllipticCurvePoint_finite_field): new base point

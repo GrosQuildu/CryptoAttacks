@@ -95,19 +95,21 @@ def test_recover_d_biased_k():
 
 
 def test_dsks():
+    print("Test Duplicate-Signature Key Selection on ECDSA")
     p = 233970423115425145524320034830162017933
     a = -95051
     b = 11279326
     curve = EllipticCurve(Zmod(p), [a, b])
     G = curve(182, 85518893674295321206118380980485522083)
 
-    Q, d = generate_keys(G)
-    message = i2b(randint(1, long(G.order() - 1)))
-    r, s = sign(message, d, G, hash_function_sha1)
-    
-    G_p, d_p, Q_p = dsks(G, message, (r, s), Q, hash_function_sha1)
-    assert Q_p == d_p * G_p
-    assert verify(message, (r, s), G_p, Q_p, hash_function_sha1)
+    for _ in range(5):
+        Q, d = generate_keys(G)
+        message = i2b(randint(1, int(G.order() - 1)))
+        r, s = sign(message, d, G, hash_function_sha1)
+        
+        G_p, d_p, Q_p = dsks(G, message, (r, s), Q, hash_function_sha1)
+        assert Q_p == d_p * G_p
+        assert verify(message, (r, s), G_p, Q_p, hash_function_sha1)
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ import gmpy2
 from Crypto.PublicKey import RSA as PyRSA
 
 from CryptoAttacks.Math import (continued_fractions, convergents, crt, gcd,
-                                invmod)
+                                invmod, pohlig_hellman, generate_smooth_prime)
 from CryptoAttacks.Utils import b2i, i2b, i2h, log, power_of_two, random_bytes
 
 
@@ -703,3 +703,61 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
                                       " signature**{}%{} is {}".format(signature, key.e, key.n, [(test_plaintext)]))
                             break
         return signatures
+
+
+
+
+
+def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
+    """Duplicate-Signature Key Selection on RSA
+    Create key pair verifies given signature
+
+    signature^e == hash_function(message) % n
+
+    So if we have someone's public key (with n) and signature s of some message signed
+    with corresponding private key we can create new key pair that will verify the signature,
+    BUT new e will be large
+
+    Can also be used stuff like generating key pair that will decrypt given message to choosen plaintext
+
+    Args:
+        message(int/arg for hash_function)
+        signature(int)
+        n(int)
+        smooth_bit_size(int): to tweak, most factors of p-1 and q-1 will be of this bit size 
+        hash_function(NoneType/callable): converting message to int
+
+    Returns:
+        tuple(int): n', factors of p'-1, factors of q'-1, e', d'
+    """
+    m = message
+    s = signature
+
+    key_size = n.bit_length() + 1
+    
+    while True:
+        p, p_order_factors = generate_smooth_prime(key_size//2,
+                                primitive_roots=[m, s], smooth_bit_size=smooth_bit_size)
+        q, q_order_factors = generate_smooth_prime(key_size - p.bit_length() + 1,
+                                primitive_roots=[m, s], smooth_bit_size=smooth_bit_size, exclude=p_order_factors)
+        n_p = p*q
+
+        if n_p > n:
+            log.debug("n generated")
+            log.debug("n' = {}".format(n_p, n_p.bit_length()))
+            log.debug("p' = {}".format(p, p_order_factors))
+            log.debug("q' = {}".format(q, q_order_factors))
+
+            ep = pohlig_hellman(s, m, p, p_order_factors)
+            eq = pohlig_hellman(s, m, q, q_order_factors)
+            log.debug("ep' = {}".format(ep))
+            log.debug("eq' = {}".format(eq))
+
+            e = crt([ep, eq], [p-1, (q-1)//2])
+            log.debug("e' = {}".format(e))
+
+            d = invmod(e, (p-1)*(q-1))
+            log.debug("d' = {}".format(d))
+            return n_p, p_order_factors, q_order_factors, e, d
+        else:
+            print('nope', float(n_p) / float(n))

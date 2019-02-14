@@ -3,6 +3,9 @@ from __future__ import absolute_import, division, print_function
 import operator
 from builtins import int, pow, range, zip
 from functools import reduce
+import math
+
+from Crypto.Util.number import isPrime, getPrime
 
 from CryptoAttacks.Utils import log
 
@@ -244,3 +247,112 @@ def tonelli_shanks(n, p):
         c = pow(b, 2, p)
         m = i
     return r
+
+
+def generate_smooth_prime(bit_size, primitive_roots=[], smooth_bit_size=50, exclude=[]):
+    """Generate smooth prime n
+
+    Args:
+        bit_size(int): size of generated prime in bits
+        primitive_roots(list(int)): list of numbers that will be primitive roots modulo n
+        smooth_bit_size(int): most factors of n-1 will be of this bit size   
+        exclude(list(int)): n-1 won't have any factor from that list
+
+    Returns:
+        int: n
+    """
+    while True:
+        n = 2
+        factors = {2:1}
+
+        # get random primes of correct size
+        log.debug('smooth prime - loop of size about {}'.format((bit_size - 2*smooth_bit_size)//smooth_bit_size))
+        while n.bit_length() < bit_size - 2*smooth_bit_size:
+            q = getPrime(smooth_bit_size)
+            if q in exclude:
+                continue
+            n *= q
+            if q in factors:
+                factors[q] += 1
+            else:
+                factors[q] = 1
+
+        # find last prime so that n+1 is prime and the size is correct
+        smooth_bit_size_padded = bit_size - n.bit_length()
+        log.debug('smooth prime - smooth_bit_size_padded = {}'.format(smooth_bit_size_padded))
+        while True:
+            q = getPrime(smooth_bit_size_padded)
+            if q in exclude:
+                continue
+            if isPrime((n*q)+1):
+                n = (n*q)+1
+                if q in factors:
+                    factors[q] += 1
+                else:
+                    factors[q] = 1
+                break
+        
+        # check if given numbers are primitive roots
+        log.debug('smooth prime - checking primitive roots')
+        are_primitive_roots = True
+        if len(primitive_roots) > 0: 
+            for factor, factor_power in factors.items():
+                for primitive_root in primitive_roots:
+                    if pow(primitive_root, (n-1)//(factor**factor_power), n) == 1:
+                        are_primitive_roots = False
+                        break
+
+        if are_primitive_roots:
+            log.debug('smooth prime - done')
+            return n, factors
+        else:
+            log.debug('primitive roots criterion not met')
+
+
+def babystep_giantstep(g, h, p, upper_bound):
+    m = int(math.ceil(math.sqrt(upper_bound)))
+    log.debug('babystep-giantstep with loops of size {}'.format(m))
+    g_j = {}
+    g_j_tmp = 1
+    for j in range(m):
+        g_j[g_j_tmp] = j
+        g_j_tmp = (g_j_tmp*g) % p
+
+    g_m = invmod(pow(g, m, p), p)
+    y = h
+    for i in range(m):
+        if y in g_j:
+            return (i*m + g_j[y]) % p
+        y = (y*g_m) % p
+
+
+def pohlig_hellman(g, h, p, p_order_factors):
+    """Pohlig-Hellman factorization method
+    g^x = h % p, find x if order of p is smooth
+
+    Args:
+        g, h, p(int)
+        p_order_factors(dict)
+
+    Returns:
+        int: x
+    """
+    xi = []
+    ci = 0
+    for pi, ei in p_order_factors.items():
+        ci += 1
+        print('now', ci, len(p_order_factors.keys()))
+        gi = pow(g, (p-1)//(pi**ei), p)  # gi have order pi**ei
+        hi = pow(h, (p-1)//(pi**ei), p)  # hi is in <gi>
+
+        xk = 0
+        gamma = pow(gi, pi**(ei-1), p)  # gamma has order pi
+        for k in range(ei):
+            hk = invmod(pow(gi, xk, p), p)
+            hk = pow(hk * hi, pi**(ei-1-k), p)  # hk is in <gamma>
+            dk = babystep_giantstep(gamma, hk, p, pi)
+            if dk is None:
+                return None
+            xk = (xk + pow(pi, k, pi**ei)*dk) % (pi**ei)
+        xi.append(xk)
+    return crt(xi, [pi**ei for pi, ei in p_order_factors.items()])
