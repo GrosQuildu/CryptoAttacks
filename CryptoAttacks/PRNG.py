@@ -35,16 +35,16 @@ class LCG(object):
     @staticmethod
     def compute_params(s, m=None, a=None, b=None):
         """Compute parameters and initial seed for LCG prng
-        next_state = a*seed + b mod m
+        next_state = a*state + b mod m
 
         Args:
-            s(list): subsequent outputs from LCG oracle
+            s(list): subsequent outputs from LCG oracle starting with seed
             m(int/None)
             a(int/None)
             b(int/None)
 
         Returns:
-            seed, a, b, m(int): assuming first state in s was derived from seed
+            a, b, m(int)
         """
         if m is None:
             t = [s[n + 1] - s[n] for n in range(len(s) - 1)]
@@ -59,12 +59,11 @@ class LCG(object):
                 a = (s[3] - s[1]) * invmod(s[2] - s[0], m)
             else:
                 log.critical_error("a not found")
-            log.succes("a = {}".format(a))
-
+            a = a % m
+            log.success("a = {}".format(a))
+            
         if b is None:
             b = (s[1] - s[0] * a) % m
             log.success("b = {}".format(b))
-
-        seed = (((s[0] - b) % m) * invmod(a, m)) % m
-        log.success("seed = {}".format(seed))
-        return seed, a, b, m
+                
+        return a, b, m
