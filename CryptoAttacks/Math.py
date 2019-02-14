@@ -52,13 +52,14 @@ def product(numbers):
 def crt(a, n):
     """Solve chinese remainder theorem
     from: http://rosettacode.org/wiki/Chinese_remainder_theorem#Python
+    The solution will be modulo product of modules
 
     Args:
         a(list): remainders
         n(list): modules
 
     Returns:
-        long: solution to crt
+        int: solution to crt
     """
     if len(a) != len(n):
         log.critical_error("Different number of remainders({}) and modules({})".format(len(a), len(n)))
@@ -70,6 +71,47 @@ def crt(a, n):
         p = prod // n_i
         sum_crt += a_i * invmod(p, n_i) * p
     return int(sum_crt % prod)
+
+
+def crt_non_coprime(a, n):
+    """Solve chinese remainder theorem with general modules
+    Given:
+    x = a % n
+    x = b % m
+
+    If modules n, m are not comprime, but a = b mod gcd(n, m) then solution can be found
+    The solution will be modulo lcm of modules
+
+    Args:
+        a(list): remainders
+        n(list): modules
+
+    Returns:
+        int: solution to crt
+    """
+    if len(a) != len(n):
+        log.critical_error("Different number of remainders({}) and modules({})".format(len(a), len(n)))
+
+    if len(n) < 2:
+        log.critical_error("Give at least two remainders and modules (got {})".format(len(n)))
+
+    while len(n) > 1:
+        g, u, _ = egcd(n[0], n[1])
+
+        if (a[0] - a[1]) % g != 0:
+            print('Not satisfied: gcd(ni, nj) | ai - aj\ngcd({}, {}) | {} - {}'.format(n[0], n[1], a[0], a[1]))
+            return None
+
+        w = (a[0] - a[1]) // g
+        l = lcm(n[0], n[1])
+        x = (a[0] - n[0]*u*w) % l
+
+        n = n[2:]
+        n.insert(0, l)
+        a = a[2:]
+        a.insert(0, x)
+
+    return int(a[0] % n[0])
 
 
 def euler_phi(factors):

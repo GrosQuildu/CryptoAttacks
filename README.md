@@ -49,7 +49,7 @@ pip install .
     + [ECDSA](CryptoAttacks/docs/EllipticCurve/ecdsa.md)
         + Biased nonce (LSB equals to zero)*
 * [Hash](CryptoAttacks/docs/Hash.md)
-    * Length extension
+    * Length extension (sha1, md4)
 * [PRNG](CryptoAttacks/docs/PRNG.md)
 	* Linear Congruence generator
 * [Utils](CryptoAttacks/docs/Utils.md)

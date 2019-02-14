@@ -14,6 +14,24 @@ def crt(a, n):
     """
 
 
+def crt_non_coprime(a, n):
+    """Solve chinese remainder theorem with general modules
+    Given:
+    x = a % n
+    x = b % m
+
+    If modules n, m are not comprime, but a = b mod gcd(n, m) then solution can be found
+    The solution will be modulo lcm of modules
+
+    Args:
+        a(list): remainders
+        n(list): modules
+
+    Returns:
+        int: solution to crt
+    """
+
+
 def euler_phi(factors):
     """Compute euler's phi (totient) function
 
