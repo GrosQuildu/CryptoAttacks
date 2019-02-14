@@ -1,14 +1,25 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import hashlib
 import sys
+from builtins import bytes
+from os.path import abspath, dirname
+from os.path import join as join_path
 
 from CryptoAttacks.PublicKey.rsa import RSAKey
-from CryptoAttacks.Utils import *
+from CryptoAttacks.Utils import b2h, b2i, h2b, i2b
 
+current_path = dirname(abspath(__file__))
+
+hash_asn1 = {
+    'md5': bytes(b'\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10'),
+    'sha1': bytes(b'\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14'),
+    'sha256': bytes(b'\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20'),
+    'sha384': bytes(b'\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30'),
+    'sha512': bytes(b'\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40')
+}
 
 def encrypt(plaintext, key):
     plaintext = b2i(plaintext)
@@ -39,7 +50,7 @@ def verify(message, signature, key):
 
 
 def parity_oracle(ciphertext):
-    key = RSAKey.import_key("private_key_1024.pem")
+    key = RSAKey.import_key(join_path(current_path, 'private_key_1024.pem'))
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)
     if message & 1 == 1:
@@ -49,49 +60,36 @@ def parity_oracle(ciphertext):
 
 def verify_bleichenbacher_suffix(message, signature, key, hash_function='sha1'):
     """00 01 00 ASN1 HASH garbage"""
-    hash_asn1 = {
-        'md5': '\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10',
-        'sha1': '\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14',
-        'sha256': '\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20',
-        'sha384': '\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
-        'sha512': '\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
-    }
     hash_msg = getattr(hashlib, hash_function)(message).digest()
     asn1 = hash_asn1[hash_function]
     signature = b2i(signature)
 
     plain = i2b(key.encrypt(signature), size=1024)
     try:
-        plain_hash = plain[plain.index('\x00', 2) + 1:]  # have ASN1 HASH garbage
+        plain_hash = plain[plain.index(bytes(b'\x00'), 2) + 1:]  # have ASN1 HASH garbage
     except:
         return False
     plain_hash = plain_hash[:len(asn1 + hash_msg)]  # have ANS1 HASH
-    if plain[:2] == "\x00\x01" and plain_hash == asn1 + hash_msg:
+    if plain[:2] == bytes(b'\x00\x01') and plain_hash == asn1 + hash_msg:
         return True
     return False
 
 
 def verify_bleichenbacher_middle(message, signature, key, hash_function='sha1'):
     """00 01 garbage 00 ANS1 HASH"""
-    hash_asn1 = {
-        'md5': '\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10',
-        'sha1': '\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14',
-        'sha256': '\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20',
-        'sha384': '\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
-        'sha512': '\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
-    }
     hash_msg = getattr(hashlib, hash_function)(message).digest()
     asn1 = hash_asn1[hash_function]
     signature = b2i(signature)
 
     plain = i2b(key.encrypt(signature), size=1024)
     try:
-        plain_hash = plain[plain.index('\x00', 2) + 1:]  # have ASN1 HASH
+        plain_hash = plain[plain.index(bytes(b'\x00'), 2) + 1:]  # have ASN1 HASH
     except:
         return False
-    if plain[:2] == "\x00\x01" and plain_hash == asn1 + hash_msg:
+    if plain[:2] == bytes(b'\x00\x01') and plain_hash == asn1 + hash_msg:
         return True
     return False
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 4 or sys.argv[1] not in ['encrypt', 'decrypt', 'sign', 'verify', 'parity', 'verify_bleichenbacher_middle', 'verify_bleichenbacher_suffix']:

@@ -1,16 +1,18 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import hashlib
+import math
 import random
 import string
-import gmpy2
-import math
+from binascii import hexlify
+from builtins import bytes, chr, map, range, str, zip
 from numbers import Number
-import hashlib
 
+import gmpy2
 import requests
 from bs4 import BeautifulSoup
+
+from termcolor import colored
 
 
 class Log(object):
@@ -20,12 +22,12 @@ class Log(object):
 
     @property
     def level(self):
-        return self._levels.keys()[self._levels.values().index(self._level)]
+        return list(self._levels.keys())[list(self._levels.values()).index(self._level)]
 
     @level.setter
     def level(self, value):
-        if value not in self._levels.keys():
-            print("Not in possible levels:", self._levels.keys())
+        if value not in list(self._levels.keys()):
+            print("Not in possible levels:", list(self._levels.keys()))
         else:
             self._level = self._levels[value]
 
@@ -35,43 +37,44 @@ class Log(object):
     def debug(self, a):
         min_level = 30
         if self._level >= min_level:
-            print("[D]"+str(a))
+            print("[{}] ".format(colored('D', 'magenta')) + str(a))
 
     def info(self, a):
         min_level = 20
         if self._level >= min_level:
-            print("[i]"+str(a))
+            print("[{}] ".format(colored('i', 'yellow', attrs=['bold'])) + str(a))
 
     def success(self, a):
         min_level = 10
         if self._level >= min_level:
-            print("[+]" + str(a))
+            print("[{}] ".format(colored('+', 'green', attrs=['bold'])) + str(a))
 
     def error(self, a):
         min_level = 10
         if self._level >= min_level:
-            print("[-]" + str(a))
+            print("[{}] ".format(colored('i', 'red', attrs=['bold'])) + str(a))
 
     def critical_error(self, a):
         raise Exception(str(a))
+
 log = Log()
 
 
 def b2h(a, size=0):
     """Encode bytes to hex string"""
-    return a.encode('hex')
+    return hexlify(a).decode()
 
 
 def h2b(a):
     """Decode hex string to bytes"""
     a = a.strip()
     try:
-        return a.decode('hex')
-    except TypeError:
+        return bytes.fromhex(a)
+    except (TypeError, ValueError):
         try:
-            return ('0'+a).decode('hex')
+            return bytes.fromhex(bytes(b'0')+a)
         except Exception as e:
-            print(a, e)
+            print(e, a)
 
 
 def h2i(a):
@@ -81,14 +84,14 @@ def h2i(a):
 
 def i2h(a, size=0):
     """Encode int as hex string"""
-    return i2b(a, size=size).encode('hex')
+    return hexlify(i2b(a, size=size)).decode()
 
 
 def b2i(number_bytes, endian='big'):
     """Unpack bytes into int
 
     Args:
-        number_bytes(string)
+        number_bytes(bytes)
         endian(string): big/little
 
     Returns:
@@ -102,7 +105,7 @@ def b2i(number_bytes, endian='big'):
 
     if endian == 'little':
         number_bytes = number_bytes[::-1]
-    return int(number_bytes.encode('hex'), 16)
+    return int(hexlify(number_bytes).decode(), 16)
 
 
 def i2b(number, size=0, endian='big', signed=False):
@@ -115,7 +118,7 @@ def i2b(number, size=0, endian='big', signed=False):
         signed(bool): pack as two's complement if True (size must be given)
 
     Returns:
-        string
+        bytes
     """
     if endian not in ['little', 'big']:
         log.critical_error("Bad endianness, must be big or little")
@@ -138,12 +141,12 @@ def i2b(number, size=0, endian='big', signed=False):
     if signed and number < 0:
         number += (1 << size)
 
-    number_bytes = ''
+    number_bytes = bytes(b'')
     while number:
-        number_bytes += chr(number & 0xff)
+        number_bytes += bytes([number & 0xff])
         number >>= 8
 
-    number_bytes += '\x00'*(int(math.ceil(size/8.0))-len(number_bytes))
+    number_bytes += bytes(b'\x00'*(int(math.ceil(size/8.0))-len(number_bytes)))
 
     if endian == 'big':
         return number_bytes[::-1]
@@ -155,36 +158,27 @@ def is_printable(a, alphabet=string.printable, reliability=100.0):
     for char in a:
         if char in alphabet:
             result += 1
-    if (result/float(len(a)))*100.0 >= reliability:
+    if (result / len(a))*100.0 >= reliability:
         return True
     return False
-
-
-def xor_one(a, b):
-    """Return a xor b as char"""
-    if type(a) != int:
-        a = ord(a)
-    if type(b) != int:
-        b = ord(b)
-    return chr(a ^ b)
 
 
 def xor(*args, **kwargs):
     """Xor given values
 
-        args - strings to be xored
-        expand - don't expand strings to size of the longest string if False
-    Return xored strings
+        args - bytes to be xored
+        expand - don't expand bytes to size of the longest string if False
+    Return xored bytes
     """
     if 'expand' in kwargs and kwargs['expand'] is False:
-        result = '\x00' * len(min(args, key=len))
+        result = bytes(b'\x00' * len(min(args, key=len)))
     else:
         max_size = len(max(args, key=len))
-        result = '\x00' * max_size
+        result = bytes(b'\x00' * max_size)
     for one in args:
-        tmp = ''
+        tmp = bytes(b'')
         for x in range(len(result)):
-            tmp += chr(ord(result[x]) ^ ord(one[x%len(one)]))
+            tmp += bytes([result[x] ^ one[x%len(one)]])
         result = tmp
     return result
 
@@ -192,13 +186,13 @@ def xor(*args, **kwargs):
 def add_padding(data, block_size=16):
     """add PKCS#7 padding"""
     size = block_size - (len(data)%block_size)
-    return data+chr(size)*size
+    return data + bytes([size]*size)
 
 
 def strip_padding(data, block_size=16):
     """strip PKCS#7 padding"""
-    padding = ord(data[-1])
-    if padding == 0 or padding > block_size or data[-padding:] != chr(padding)*padding:
+    padding = int(data[-1])
+    if padding == 0 or padding > block_size or data[-padding:] != bytes([padding]*padding):
         raise Exception("Invalid padding")
     return data[:-padding]
 
@@ -212,13 +206,13 @@ def add_rsa_signature_padding(data, size=1024, hash_function='sha1'):
         'sha384': '\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
         'sha512': '\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
     }
-    if hash_function not in hash_asn1.keys():
+    if hash_function not in list(hash_asn1.keys()):
         log.critical_error("Hash function {} not supported".format(hash_function))
 
     hash_data = getattr(hashlib, hash_function)(data).digest()
     padded = hash_asn1[hash_function] + hash_data
-    padded = '\xff'*(size//8 - len(padded) - 2)
-    padded = "\x00\x01" + padded
+    padded = bytes(b'\xff'*(size//8 - len(padded) - 2))
+    padded = bytes(b'\x00\x01') + padded
     return padded + data
 
 
@@ -233,7 +227,7 @@ def add_md_padding(data, endian='big'):
         size = 56 - size
     else:
         size = 120 - size
-    p = '\x80' + '\x00' * 63
+    p = bytes(b'\x80') + bytes(b'\x00'*63)
     p = p[:size]
     return data + p + i2b(len(data)*8, size=64, endian=endian)
 
@@ -243,6 +237,7 @@ def hamming_distance(a, b):
 
 
 def chunks(data, block_size):
+    """Split data to list of chunks"""
     return [data[0+i:block_size+i] for i in range(0, len(data), block_size)]
 
 
@@ -250,9 +245,9 @@ def print_chunks(data, delim=' | '):
     return delim.join([b2h(x) for x in data])
 
 
-def random_str(length):
+def random_bytes_alpha(length):
     alphabet = string.printable[:-5]
-    return ''.join([alphabet [random.randint(0, len(alphabet )-1)] for x in range(length)])
+    return bytes(b''.join([alphabet[random.randint(0, len(alphabet )-1)].encode() for x in range(length)]))
 
 
 def random_char():
@@ -260,7 +255,7 @@ def random_char():
 
 
 def random_bytes(amount=1):
-    return ''.join([chr(random.randint(0,255)) for x in range(amount)])
+    return bytes([random.randint(0,255) for x in range(amount)])
 
 
 def random_prime(bytes=512):
@@ -273,6 +268,7 @@ def random_prime(bytes=512):
 def power_of_two(number):
     """number == (2^x)*b, returns x"""
     return len(bin(number)) - len(bin(number).rstrip('0'))
+
 
 def factordb(number):
     """Ask factordb.com for factorization
@@ -318,9 +314,8 @@ def factordb(number):
         else:
             to_parse = factors_txt[factor_id].text
             if '^' in to_parse:
-                a, b = map(int, to_parse.split('^'))
+                a, b = list(map(int, to_parse.split('^')))
                 factors[a] = b
             else:
                 factors[int(to_parse)] = 1
     return status, digits, factors
-

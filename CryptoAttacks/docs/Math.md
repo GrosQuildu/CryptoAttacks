@@ -46,4 +46,10 @@ def factors(n):
     """Find factors of n
     from http://stackoverflow.com/questions/6800193/what-is-the-most-efficient-way-of-finding-all-the-factors-of-a-number-in-python
     """
+
+def legendre(a, p):
+    """Legendre symbol"""
+
+def tonelli_shanks(n, p):
+    """Find r such that r^2 = n % p, r2 == p-r"""
 ```

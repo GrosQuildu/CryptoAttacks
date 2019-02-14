@@ -1,10 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import range
+from builtins import bytes, range
 
-from CryptoAttacks.Utils import *
+from CryptoAttacks.Utils import b2h, chunks, log, print_chunks, xor
 
 
 def padding_oracle(payload, iv):
@@ -42,7 +40,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
 
     if decryption_oracle:
         try:
-            decryption_oracle('B' * block_size)
+            decryption_oracle(bytes(b'B' * block_size))
         except NotImplementedError:
             log.critical_error("decryption_oracle not implemented")
         except Exception as e:
@@ -50,7 +48,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
 
     if padding_oracle:
         try:
-            padding_oracle(payload='B'*block_size, iv='A'*block_size)
+            padding_oracle(payload=bytes(b'B'*block_size), iv=bytes(b'A'*block_size))
         except NotImplementedError:
             log.critical_error("padding_oracle not implemented")
         except Exception as e:
@@ -58,7 +56,7 @@ def _check_oracles(padding_oracle=None, decryption_oracle=None, block_size=16):
 
 
 def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, block_size=16,
-            is_correct=True, amount=0, known_plaintext=None, async=False):
+            is_correct=True, amount=0, known_plaintext=None, async_calls=False):
     """Decrypt ciphertext
     Give padding_oracle or decryption_oracle (or both)
 
@@ -71,7 +69,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
         is_correct(bool): set if ciphertext will decrypt to something with correct padding
         amount(int): how much blocks decrypt (counting from last), zero (default) means all
         known_plaintext(string): with padding, from end (aligned to end of ciphertext)
-        async(bool): make asynchronous calls to oracle (not implemented yet)
+        async_calls(bool): make asynchronous calls to oracle (not implemented yet)
 
     Returns:
         plaintext(string): with padding
@@ -88,7 +86,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
         if iv:
             ciphertext = iv + ciphertext
         blocks = chunks(ciphertext, block_size)
-        plaintext = ''
+        plaintext = bytes(b'')
         for position in range(len(blocks)-1, 0, -1):
             plaintext = xor(decryption_oracle(blocks[position]), blocks[position-1]) + plaintext
             log.info("Plaintext(hex): {}".format(b2h(plaintext)))
@@ -116,7 +114,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
     log.info("Will decrypt {} block(s)".format(len(blocks) - 1 - amount))
 
     # add known plaintext
-    plaintext = ''
+    plaintext = bytes(b'')
     position_known = 0
     chars_decoded = 0
     if known_plaintext:
@@ -142,14 +140,14 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
         """ Blocks from the last to the second (all except iv) """
         log.info("Block no. {}".format(count_block))
 
-        payload_prefix = ''.join(blocks[:count_block - 1])
+        payload_prefix = bytes(b''.join(blocks[:count_block - 1]))
         payload_modify = blocks[count_block - 1]
         payload_decrypt = blocks[count_block]
 
         if chars_decoded != 0:
             # we know some chars, so modify previous block
             payload_modify = payload_modify[:-chars_decoded] +\
-                             xor(plaintext[:chars_decoded], payload_modify[-chars_decoded:], chr(chars_decoded + 1))
+                             xor(plaintext[:chars_decoded], payload_modify[-chars_decoded:], bytes([chars_decoded + 1]))
             chars_decoded = 0
 
         position = block_size - 1 - position_known
@@ -160,8 +158,8 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
 
             found_correct_char = False
             for guess_char in range(256):
-                modified = payload_modify[:position] + chr(guess_char) + payload_modify[position + 1:]
-                payload = ''.join([payload_prefix, modified, payload_decrypt])
+                modified = payload_modify[:position] + bytes([guess_char]) + payload_modify[position + 1:]
+                payload = bytes(b''.join([payload_prefix, modified, payload_decrypt]))
 
                 iv = payload[:block_size]
                 payload = payload[block_size:]
@@ -171,23 +169,23 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                 if correct:
                     """ oracle returns True """
                     padding = block_size - position  # sent ciphertext decoded to that padding
-                    decrypted_char = chr(ord(payload_modify[position]) ^ guess_char ^ padding)
+                    decrypted_char = bytes([payload_modify[position] ^ guess_char ^ padding])
 
                     if is_correct:
                         """ If we didn't send original ciphertext, then we have found original padding value.
                             Otherwise keep searching and if won't find any other correct char - padding is \x01
                         """
-                        if guess_char == ord(blocks[-2][-1]):
+                        if guess_char == blocks[-2][-1]:
                             log.debug("Skip this guess char ({})".format(guess_char))
                             continue
 
-                        dc = ord(decrypted_char)
+                        dc = int(decrypted_char[0])
                         log.info("Found padding value for correct ciphertext: {}".format(dc))
                         if dc == 0 or dc > block_size:
                             log.critical_error("Found bad padding value (given ciphertext may not be correct)")
 
                         plaintext = decrypted_char * dc
-                        payload_modify = payload_modify[:-dc] + xor(payload_modify[-dc:], decrypted_char, chr(dc + 1))
+                        payload_modify = payload_modify[:-dc] + xor(payload_modify[-dc:], decrypted_char, bytes([dc + 1]))
                         position = position - dc + 1
                         is_correct = False
                     else:
@@ -199,7 +197,7 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                         if position == block_size - 1:
                             """ if we decrypt first byte, check if we didn't hit other padding than \x01 """
                             payload = iv + payload
-                            payload = payload[:-block_size - 2] + 'A' + payload[-block_size - 1:]
+                            payload = payload[:-block_size - 2] + bytes(b'A') + payload[-block_size - 1:]
                             iv = payload[:block_size]
                             payload = payload[block_size:]
                             correct = padding_oracle(payload=payload, iv=iv)
@@ -208,12 +206,12 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
                                 continue
 
                         payload_modify = payload_modify[:position] + xor(
-                            chr(guess_char) + payload_modify[position + 1:], chr(padding), chr(padding + 1))
+                            bytes([guess_char]) + payload_modify[position + 1:], bytes([padding]), bytes([padding + 1]))
                         plaintext = decrypted_char + plaintext
 
                     found_correct_char = True
                     log.debug(
-                        "Guessed char(\\x{:02x}), decrypted char(\\x{:02x})".format(guess_char, ord(decrypted_char)))
+                        "Guessed char(\\x{:02x}), decrypted char(\\x{:02x})".format(guess_char, decrypted_char[0]))
                     log.debug("Plaintext: {}".format(plaintext))
                     log.info("Plaintext(hex): {}".format(b2h(plaintext)))
                     break
@@ -221,9 +219,9 @@ def decrypt(ciphertext, padding_oracle=None, decryption_oracle=None, iv=None, bl
             if found_correct_char is False:
                 if is_correct:
                     padding = 0x01
-                    payload_modify = payload_modify[:position + 1] + xor(payload_modify[position + 1:], chr(padding),
-                                                                         chr(padding + 1))
-                    plaintext = "\x01"
+                    payload_modify = payload_modify[:position + 1] + xor(payload_modify[position + 1:], bytes([padding]),
+                                                                         bytes([padding + 1]))
+                    plaintext = bytes(b"\x01")
                     is_correct = False
                 else:
                     log.critical_error("Can't find correct padding (oracle function return False 256 times)")
@@ -250,7 +248,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         log.critical_error("Incorrect block size: {}".format(block_size))
 
     log.info("Start fake ciphertext")
-    ciphertext = 'A' * (len(new_plaintext) + block_size)
+    ciphertext = bytes(b'A' * (len(new_plaintext) + block_size))
 
     # prepare blocks
     blocks = chunks(ciphertext, block_size)
@@ -266,7 +264,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         """ Every block, modify block[count_block-1] to set block[count_block] """
         log.info("Block no. {}".format(count_block))
 
-        ciphertext_to_decrypt = ''.join(new_ct_blocks[:count_block + 1])
+        ciphertext_to_decrypt = bytes(b''.join(new_ct_blocks[:count_block + 1]))
         original_plaintext = decrypt(ciphertext_to_decrypt, padding_oracle=padding_oracle,
                                      decryption_oracle=decryption_oracle, block_size=block_size,
                                      amount=1, is_correct=False)
@@ -274,7 +272,7 @@ def fake_ciphertext(new_plaintext, padding_oracle=None, decryption_oracle=None, 
         new_ct_blocks[count_block - 1] = xor(blocks[count_block - 1], original_plaintext,
                                              new_pl_blocks[count_block - 1])
 
-    fake_ciphertext_res = ''.join(new_ct_blocks)
+    fake_ciphertext_res = bytes(b''.join(new_ct_blocks))
     log.success("Fake ciphertext(hex): {}".format(b2h(fake_ciphertext_res)))
     return fake_ciphertext_res
 
@@ -328,7 +326,7 @@ def iv_as_key(ciphertext, plaintext, padding_oracle=None, decryption_oracle=None
         log.debug("first ciphertext block is not repeated, will use decryption/padding oracle")
 
     if key is None:
-        iv = 'A'*block_size
+        iv = bytes(b'A'*block_size)
         iv_xor_plaintext0 = decrypt(ciphertext[0], padding_oracle=padding_oracle,
                             decryption_oracle=decryption_oracle, iv=iv,
                             block_size=block_size, is_correct=False, amount=1)

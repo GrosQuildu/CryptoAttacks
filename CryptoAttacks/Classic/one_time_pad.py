@@ -1,17 +1,15 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from builtins import range
+from __future__ import absolute_import, division, print_function
 
 import itertools
+import operator
 import os
 import re
-import sys
+from builtins import map, range
 from collections import defaultdict
 
-from CryptoAttacks.Math import *
-from CryptoAttacks.Utils import *
+from CryptoAttacks.Math import gcd
+from CryptoAttacks.Utils import (chunks, hamming_distance, is_printable, log,
+                                 xor)
 
 frequencies = {
     'Swedish': [('e', 10.149), ('a', 9.383), ('n', 8.542), ('r', 8.431), ('t', 7.691), ('s', 6.59), ('i', 5.817),
@@ -263,7 +261,7 @@ def get_frequencies_dict():
         for dic_lang in frequencies:
             frequencies[dic_lang].pop('nr')
             sorted_lang = sorted(
-                frequencies[dic_lang].items(), key=operator.itemgetter(1), reverse=True)
+                list(frequencies[dic_lang].items()), key=operator.itemgetter(1), reverse=True)
     except Exception as msg:
         print(msg)
     return frequencies
@@ -338,7 +336,7 @@ def break_one_char_key(ciphertext, lang='English', no_of_comparisons=5, alphabet
     if not alphabet:
         alphabet = string.printable
     if not key_space:
-        key_space = map(chr, range(256))
+        key_space = list(map(chr, list(range(256))))
 
     result = {}
     for key in key_space:
@@ -346,7 +344,7 @@ def break_one_char_key(ciphertext, lang='English', no_of_comparisons=5, alphabet
         if is_printable(xored, alphabet=alphabet, reliability=reliability):
             result[key] = xored
     if result:
-        return sorted(result.items(), key=operator.itemgetter(1), reverse=True,
+        return sorted(list(result.items()), key=operator.itemgetter(1), reverse=True,
                       cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisons=no_of_comparisons))
     return False
 
@@ -380,7 +378,7 @@ def guess_key_size(ciphertext, max_key_size=40):
             i += 1
         result[key_size] = diff / float(i)  # average
         result[key_size] /= float(key_size)  # normalize
-    result = sorted(result.items(), key=operator.itemgetter(1))
+    result = sorted(list(result.items()), key=operator.itemgetter(1))
 
     # now part from given link, case one
     # gcd12 = gcd(result[0][0], result[1][0])
@@ -401,7 +399,7 @@ def guess_key_size(ciphertext, max_key_size=40):
     for gcd_pairs in itertools.combinations(result[:10], 2):
         gcd_tmp = gcd(gcd_pairs[0][0], gcd_pairs[1][0])
         gcd_frequencies[gcd_tmp] += 1
-    gcd_frequencies = sorted(gcd_frequencies.items(), key=operator.itemgetter(1), reverse=True)
+    gcd_frequencies = sorted(list(gcd_frequencies.items()), key=operator.itemgetter(1), reverse=True)
 
     key_sizes = [x[0] for x in result[:10]]
     distances = [x[1] for x in result[:10]]
@@ -446,7 +444,7 @@ def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size
         key_char = key_char[0]  # get only most probable, because product may be large
         key[position] = key_char
 
-    key = [x[1] for x in key.items()]
+    key = [x[1] for x in list(key.items())]
     key = [x[0] for x in key]
     if not key:
         return False
@@ -455,7 +453,7 @@ def break_repeated_key(ciphertext, lang='English', no_of_comparisons=5, key_size
     for guessed_key in itertools.product(*key):
         guessed_key = ''.join(guessed_key)
         plaintexts[guessed_key] = xor(guessed_key, ciphertext)
-    return sorted(plaintexts.items(), key=operator.itemgetter(1), reverse=True,
+    return sorted(list(plaintexts.items()), key=operator.itemgetter(1), reverse=True,
                   cmp=lambda x, y: compare_by_frequencies(x, y, lang=lang, no_of_comparisons=no_of_comparisons))
 
 
@@ -477,14 +475,14 @@ def break_reuse_key(ciphertexts, lang='English', no_of_comparisons=5, alphabet=N
     if len(ciphertexts) < 2:
         log.critical_error("Too less ciphertexts")
 
-    min_size = min(map(len, ciphertexts))
-    ciphertexts = map(lambda one: one[:min_size], ciphertexts)
+    min_size = min(list(map(len, ciphertexts)))
+    ciphertexts = [one[:min_size] for one in ciphertexts]
     log.info("Ciphertexts shrinked to {} bytes".format(min_size))
 
     pairs = break_repeated_key(''.join(ciphertexts), lang=lang, no_of_comparisons=no_of_comparisons, key_size=min_size,
                                alphabet=alphabet, key_space=key_space, reliability=reliability)
 
-    res = map(lambda pair: (pair[0], chunks(pair[1], min_size)), pairs)
+    res = [(pair[0], chunks(pair[1], min_size)) for pair in pairs]
     return res
 
 

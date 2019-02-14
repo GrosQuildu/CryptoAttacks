@@ -1,20 +1,26 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from builtins import range, int, pow
+from __future__ import absolute_import, division, print_function
 
 import os
 import subprocess
-from random import randint
+from builtins import bytes, pow, range
+from os.path import abspath, dirname
+from os.path import join as join_path
+from random import getrandbits, randint
 
-from CryptoAttacks.PublicKey.rsa import *
-from CryptoAttacks.Utils import *
-from CryptoAttacks.Math import *
+from CryptoAttacks.Math import crt, gcd, invmod
+from CryptoAttacks.PublicKey.rsa import (RSAKey,
+                                         bleichenbacher_signature_forgery,
+                                         blinding, common_primes, faulty,
+                                         hastad, parity, parity_oracle,
+                                         small_e_msg, wiener)
+from CryptoAttacks.tests.PublicKey.rsa_oracles import parity_oracle
+from CryptoAttacks.Utils import (b2h, b2i, h2b, h2i, i2h, log, random_bytes,
+                                 random_prime)
 
-from rsa_oracles import *
+current_path = dirname(abspath(__file__))
+rsa_oracles_path = join_path(current_path, 'rsa_oracles.py')
 
 
 def test_RSAKey():
@@ -35,10 +41,10 @@ def test_RSAKey():
 
 
 def test_small_e_msg():
-    key = RSAKey.import_key("private_key_1024_small_e.pem")
+    key = RSAKey.import_key(join_path(current_path, 'private_key_1024_small_e.pem'))
     print("\nTest: small_e_msg")
     for _ in range(10):
-        plaintext = b2i(random_str(10))
+        plaintext = b2i(random_bytes(10))
         ciphertext = key.encrypt(plaintext)
         key.add_ciphertext(ciphertext)
         recovered_plaintext = small_e_msg(key)
@@ -47,7 +53,7 @@ def test_small_e_msg():
         key.clear_texts()
 
     for _ in range(10):
-        plaintext = b2i(random_str(43))
+        plaintext = b2i(random_bytes(42))
         ciphertext = key.encrypt(plaintext)
         key.add_ciphertext(ciphertext)
         recovered_plaintext = small_e_msg(key)
@@ -58,37 +64,37 @@ def test_small_e_msg():
 
 def signing_oracle(plaintext):
     global key_to_oracle
-    signature = subprocess.check_output(["python", "./rsa_oracles.py", "sign", key_to_oracle.identifier,
-                                         i2h(plaintext)]).strip()
+    signature = subprocess.check_output(["python", rsa_oracles_path, "sign", key_to_oracle.identifier,
+                                         i2h(plaintext)]).strip().decode()
     return h2i(signature)
 
 
 def decryption_oracle(ciphertext):
     global key_to_oracle
-    plaintext = subprocess.check_output(["python", "./rsa_oracles.py", "decrypt", key_to_oracle.identifier,
-                                         i2h(ciphertext)]).strip()
+    plaintext = subprocess.check_output(["python", rsa_oracles_path, "decrypt", key_to_oracle.identifier,
+                                         i2h(ciphertext)]).strip().decode()
     return h2i(plaintext)
 
 
 def test_blinding():
-    key = RSAKey.import_key("private_key_2048.pem")
+    key = RSAKey.import_key(join_path(current_path, 'private_key_2048.pem'))
     global key_to_oracle
     key_to_oracle = key
 
     print("\nTest: blinding(key, signing_oracle=signing_oracle)")
     for _ in range(10):
-        msg_to_sign = b2i(random_str(randint(10, (key.size/8)-1)).replace('\n', ''))
+        msg_to_sign = b2i(random_bytes(randint(10, (key.size/8)-1)).replace(bytes(b'\n'), bytes(b'')))
         key.add_plaintext(msg_to_sign)
         signature = blinding(key, signing_oracle=signing_oracle)
         assert len(signature) == 1
-        is_correct = subprocess.check_output(["python", "./rsa_oracles.py", "verify", key_to_oracle.identifier,
-                                              i2h(msg_to_sign), i2h(signature[0])]).strip()
+        is_correct = subprocess.check_output(["python", rsa_oracles_path, "verify", key_to_oracle.identifier,
+                                              i2h(msg_to_sign), i2h(signature[0])]).strip().decode()
         assert is_correct == 'True'
         key.clear_texts()
 
     print("\nTest: blinding(key, decryption_oracle=decryption_oracle)")
     for _ in range(10):
-        plaintext = b2i(random_str(randint(10, (key.size/8)-1)).replace('\n', ''))
+        plaintext = b2i(random_bytes(randint(10, (key.size/8)-1)).replace(bytes(b'\n'), bytes(b'')))
         ciphertext = key.encrypt(plaintext)
         key.add_ciphertext(ciphertext)
         plaintext_recovered = blinding(key, decryption_oracle=decryption_oracle)
@@ -103,13 +109,13 @@ def test_wiener(tries=10):
     print("\nTest: wiener")
     for _ in range(tries):
         n_size = 1024
-        p = random_prime(n_size / 2)
-        q = random_prime(n_size / 2)
+        p = random_prime(n_size // 2)
+        q = random_prime(n_size // 2)
         n = p*q
         phi = (p-1)*(q-1)
         while True:
-            d = random.getrandbits(n_size / 4)
-            if gmpy2.gcd(phi, d) == 1 and 81 * pow(d, 4) < n:
+            d = getrandbits(n_size // 4)
+            if gcd(phi, d) == 1 and 81 * pow(d, 4) < n:
                 break
         e = invmod(d, phi)
         key = RSAKey.construct(int(n), int(e))
@@ -122,7 +128,7 @@ def test_wiener(tries=10):
 
 def test_common_primes():
     print("\nTest: common primes")
-    keys_path = "./common_prime/"
+    keys_path = join_path(current_path, "./common_prime/")
     keys = []
     for f in os.listdir(keys_path):
         if f.endswith('.pem'):
@@ -179,15 +185,15 @@ def test_faulty():
 
 
 def test_parity():
-    key = RSAKey.import_key("private_key_1024.pem")
+    key = RSAKey.import_key(join_path(current_path, 'private_key_1024.pem'))
 
     print("\nTest: parity")
-    plaintext1 = "Some plaintext " + random_str(10) + " anything can it be"
-    plaintext2 = "Some plaintext " + random_str(10) + " anything can it be2"
-    ciphertext1 = h2b(subprocess.check_output(["python", "./rsa_oracles.py", "encrypt", key.identifier,
-                                               b2h(plaintext1)]).strip())
-    ciphertext2 = h2b(subprocess.check_output(["python", "./rsa_oracles.py", "encrypt", key.identifier,
-                                               b2h(plaintext2)]).strip())
+    plaintext1 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be")
+    plaintext2 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be2")
+    ciphertext1 = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
+                                               b2h(plaintext1)]).strip().decode())
+    ciphertext2 = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
+                                               b2h(plaintext2)]).strip().decode())
 
     key.texts.append({'cipher': b2i(ciphertext1)})
     key.texts.append({'cipher': b2i(ciphertext2)})
@@ -198,11 +204,11 @@ def test_parity():
 
 
 def test_bleichenbacher_signature_forgery():
-    key = RSAKey.import_key("private_key_1024_small_e.pem")
+    key = RSAKey.import_key(join_path(current_path, 'private_key_1024_small_e.pem'))
     print("\nTest bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1')")
     for _ in range(10):
-        message1 = "Some plaintext " + random_str(10) + " anything can it be"
-        message2 = "Some plaintext " + random_str(10) + " anything can it be"
+        message1 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be")
+        message2 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be")
 
         key.add_plaintext(b2i(message1))
         key.add_plaintext(b2i(message2))
@@ -210,20 +216,20 @@ def test_bleichenbacher_signature_forgery():
         forged_signatures = bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1')
         assert len(forged_signatures) == 2
 
-        verify_signature1 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_suffix",
+        verify_signature1 = subprocess.check_output(["python", rsa_oracles_path, "verify_bleichenbacher_suffix",
                                                      key.identifier, b2h(message1), i2h(forged_signatures[0]),
-                                                     'sha1']).strip()
+                                                     'sha1']).strip().decode()
         assert verify_signature1 == 'True'
-        verify_signature2 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_suffix",
+        verify_signature2 = subprocess.check_output(["python", rsa_oracles_path, "verify_bleichenbacher_suffix",
                                                      key.identifier, b2h(message2), i2h(forged_signatures[1]),
-                                                     'sha1']).strip()
+                                                     'sha1']).strip().decode()
         assert verify_signature2 == 'True'
         key.texts = []
 
     print("\nTest bleichenbacher_signature_forgery(key, garbage='middle', hash_function='sha1')")
     for _ in range(10):
-        message1 = "Some plaintext " + random_str(10) + " anything can it be"
-        message2 = "Some plaintext " + random_str(10) + " anything can it be"
+        message1 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be")
+        message2 = bytes(b"Some plaintext ") + random_bytes(10) + bytes(b" anything can it be")
 
         key.add_plaintext(b2i(message1))
         key.add_plaintext(b2i(message2))
@@ -233,16 +239,16 @@ def test_bleichenbacher_signature_forgery():
 
         # first plaintext signed
         if 0 in forged_signatures:
-            verify_signature1 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_middle",
+            verify_signature1 = subprocess.check_output(["python", rsa_oracles_path, "verify_bleichenbacher_middle",
                                                          key.identifier, b2h(message1), i2h(forged_signatures[0]),
-                                                         'sha1']).strip()
+                                                         'sha1']).strip().decode()
             assert verify_signature1 == 'True'
 
         # second plaintext signed
         if 1 in forged_signatures:
-            verify_signature2 = subprocess.check_output(["python", "./rsa_oracles.py", "verify_bleichenbacher_middle",
+            verify_signature2 = subprocess.check_output(["python", rsa_oracles_path, "verify_bleichenbacher_middle",
                                                          key.identifier, b2h(message2), i2h(forged_signatures[1]),
-                                                         'sha1']).strip()
+                                                         'sha1']).strip().decode()
             assert verify_signature2 == 'True'
         key.texts = []
 

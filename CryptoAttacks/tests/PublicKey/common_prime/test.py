@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from CryptoAttacks.PublicKey.rsa import *
 import os
 
 keys = []
@@ -10,4 +9,3 @@ for key in os.listdir('.'):
         keys.append(rsa)
 
 common_prime(keys)
-

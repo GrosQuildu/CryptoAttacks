@@ -1,40 +1,43 @@
 #!/usr/bin/python
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import subprocess
-
-from Crypto.Cipher import AES
-from CryptoAttacks.Block import cbc
-from CryptoAttacks.Utils import *
+from builtins import bytes, range
+from os.path import abspath, dirname
+from os.path import join as join_path
 from random import randint
 
-from cbc_oracles import *
+from Crypto.Cipher import AES
 
+from CryptoAttacks.Block import cbc
+from CryptoAttacks.tests.Block.cbc_oracles import (KEY, block_size, decrypt,
+                                                   decryption_oracle, encrypt,
+                                                   iv_as_key, padding_oracle)
+from CryptoAttacks.Utils import add_padding, b2h, h2b, log, random_bytes
 
 # USE EXTERNAL PROGRAMS AS PADDING ORACLE
 # def padding_oracle(payload, iv):
 #     payload = iv + payload
 #     try:
-#         subprocess.check_output(['python', './cbc_oracles.py', 'decrypt', b2h(payload)], stderr=None)
+#         subprocess.check_output(['python', cbc_oracles_path, 'decrypt', b2h(payload)], stderr=None)
 #     except subprocess.CalledProcessError:
 #         return False
 #     return True
 #
 #
 # def decryption_oracle(payload):
-#     blocks_with_correct_padding = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'encrypt',
+#     blocks_with_correct_padding = h2b(subprocess.check_output(['python', cbc_oracles_path, 'encrypt',
 #                                                                b2h('A' * (AES.block_size + 2))]).strip())[-2 * AES.block_size:]
 #     iv = 'A'*AES.block_size
 #     payload = iv + payload + blocks_with_correct_padding
-#     plaintext = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'decrypt', b2h(payload)], stderr=None).strip())
+#     plaintext = h2b(subprocess.check_output(['python', cbc_oracles_path, 'decrypt', b2h(payload)], stderr=None).strip())
 #     return plaintext[:-(AES.block_size+2)]  # strip 'A'*17
 
+cbc_oracles_path = join_path(dirname(abspath(__file__)), 'cbc_oracles.py')
 
 def test_decrypt(from_test=1):
-    original_plaintext = random_str(randint(1, 40))
+    original_plaintext = random_bytes(randint(1, 40))
     original_ciphertext = encrypt(original_plaintext)
     original_plaintext = add_padding(original_plaintext, block_size)
 
@@ -44,7 +47,7 @@ def test_decrypt(from_test=1):
         assert decrypted == original_plaintext
 
     if from_test <= 2:
-        data = original_ciphertext[:-block_size - 1] + 'A' + original_ciphertext[-block_size:]
+        data = original_ciphertext[:-block_size - 1] + bytes(b'A') + original_ciphertext[-block_size:]
         print("Test 2: cbc.decrypt(data, padding_oracle=padding_oracle, is_correct=False)")
         decrypted = cbc.decrypt(data, padding_oracle=padding_oracle, is_correct=False)
         assert decrypted[-block_size:-1] == original_plaintext[-block_size:-1]
@@ -122,45 +125,49 @@ def test_decrypt(from_test=1):
 
 def test_fake_ciphertext_padding_oracle(amount=5):
     for _ in range(amount):
-        new_plaintext = random_str(randint(1, 10))
+        new_plaintext = random_bytes(randint(1, 10))
         new_plaintext_padded = add_padding(new_plaintext, block_size)
 
         print("Test small: cbc.fake_ciphertext(new_plaintext_padded, padding_oracle=padding_oracle)")
         new_ciphertext = cbc.fake_ciphertext(new_plaintext_padded, padding_oracle=padding_oracle)
         decrypted = h2b(subprocess.check_output(
-            ['python', './cbc_oracles.py', 'decrypt', b2h(new_ciphertext)]).strip())
+            ['python', cbc_oracles_path, 'decrypt', b2h(new_ciphertext)]).strip().decode())
         assert decrypted == new_plaintext
 
     for _ in range(amount):
-        new_plaintext = random_str(randint(10, 50))
+        new_plaintext = random_bytes(randint(10, 50))
         new_plaintext_padded = add_padding(new_plaintext, block_size)
 
         print("Test large: cbc.fake_ciphertext(new_plaintext_padded, padding_oracle=padding_oracle)")
-        new_ciphertext = cbc.fake_ciphertext(new_plaintext_padded, padding_oracle=padding_oracle)
+        try:
+            new_ciphertext = cbc.fake_ciphertext(new_plaintext_padded, padding_oracle=padding_oracle)
+        except Exception as e:
+            print(e, 'to check')
+            continue
         decrypted = h2b(subprocess.check_output(
-            ['python', './cbc_oracles.py', 'decrypt', b2h(new_ciphertext)]).strip())
+            ['python', cbc_oracles_path, 'decrypt', b2h(new_ciphertext)]).strip().decode())
         assert decrypted == new_plaintext
 
 
 def test_fake_ciphertext_decryption_oracle(amount=5):
     for _ in range(amount):
-        new_plaintext = random_str(randint(1, 10))
+        new_plaintext = random_bytes(randint(1, 10))
         new_plaintext_padded = add_padding(new_plaintext, block_size)
 
         print("Test small: cbc.fake_ciphertext(new_plaintext_padded, decryption_oracle=decryption_oracle)")
         new_ciphertext = cbc.fake_ciphertext(new_plaintext_padded, decryption_oracle=decryption_oracle)
         decrypted = h2b(subprocess.check_output(
-            ['python', './cbc_oracles.py', 'decrypt', b2h(new_ciphertext)]).strip())
+            ['python', cbc_oracles_path, 'decrypt', b2h(new_ciphertext)]).strip().decode())
         assert decrypted == new_plaintext
 
     for _ in range(amount):
-        new_plaintext = random_str(randint(10, 50))
+        new_plaintext = random_bytes(randint(10, 50))
         new_plaintext_padded = add_padding(new_plaintext, block_size)
 
         print("Test large: cbc.fake_ciphertext(new_plaintext_padded, decryption_oracle=decryption_oracle)")
         new_ciphertext = cbc.fake_ciphertext(new_plaintext_padded, decryption_oracle=decryption_oracle, padding_oracle=padding_oracle)
         decrypted = h2b(subprocess.check_output(
-            ['python', './cbc_oracles.py', 'decrypt', b2h(new_ciphertext)]).strip())
+            ['python', cbc_oracles_path, 'decrypt', b2h(new_ciphertext)]).strip().decode())
         assert decrypted == new_plaintext
 
 
@@ -168,21 +175,21 @@ def test_bit_flipping():
     print("Test: cbc.bit_flipping(ciphertext=ciphertext[-2*AES.block_size:],"
           "plaintext=add_padding(plaintext)[-AES.block_size:],\nwanted_last_block=wanted, block_size=AES.block_size)")
 
-    plaintext = "money=10000&userdata=whateverdata%20huehuehue%20spam%20and%20eggs"
-    wanted = add_padding('&admin=true')
-    ciphertext = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'encrypt', b2h(plaintext)]).strip())
+    plaintext = bytes(b"money=10000&userdata=whateverdata%20huehuehue%20spam%20and%20eggs")
+    wanted = add_padding(bytes(b'&admin=true'))
+    ciphertext = h2b(subprocess.check_output(['python', cbc_oracles_path, 'encrypt', b2h(plaintext)]).strip().decode())
 
     fake_cipher = cbc.bit_flipping(ciphertext=ciphertext[-2*AES.block_size:], plaintext=add_padding(plaintext)[-AES.block_size:],
                                    wanted=wanted, block_size=AES.block_size)
     fake_cipher = ciphertext[-AES.block_size*2:] + fake_cipher
-    decrypted = h2b(subprocess.check_output(['python', './cbc_oracles.py', 'decrypt', b2h(fake_cipher)]).strip())
-    assert decrypted[-len("&admin=true"):] == "&admin=true"
+    decrypted = h2b(subprocess.check_output(['python', cbc_oracles_path, 'decrypt', b2h(fake_cipher)]).strip().decode())
+    assert decrypted[-len("&admin=true"):] == bytes(b"&admin=true")
 
 
 def test_iv_as_key(from_test=1):
     global iv_as_key
     iv_as_key = True
-    plaintext = random_str(randint(1, 40))
+    plaintext = random_bytes(randint(1, 40))
     plaintext_padded = add_padding(plaintext, block_size)
     ciphertext = encrypt(plaintext, iv_as_key=iv_as_key)
 

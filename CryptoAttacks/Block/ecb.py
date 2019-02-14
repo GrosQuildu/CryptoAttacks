@@ -1,11 +1,11 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import range
+import string
+from builtins import bytes, range
 
 from CryptoAttacks.Math import factors
-from CryptoAttacks.Utils import *
+from CryptoAttacks.Utils import (add_padding, b2h, chunks, log, print_chunks,
+                                 random_bytes)
 
 
 def encryption_oracle(payload):
@@ -49,17 +49,17 @@ def find_block_size(encryption_oracle, constant=True):
     """
     if constant:
         log.debug("constant == True")
-        payload = 'A'
+        payload = bytes(b'A')
         size = len(encryption_oracle(payload))
         while True:
-            payload += 'A'
+            payload += bytes(b'A')
             new_size = len(encryption_oracle(payload))
             if new_size > size:
                 log.info("block_size={}".format(new_size - size))
                 return new_size - size
     else:
         log.debug("constant == False")
-        payload = 'A'
+        payload = bytes(b'A')
         max_size = len(encryption_oracle(payload))
         possible_sizes = factors(max_size)
         possible_sizes.add(max_size)
@@ -67,7 +67,7 @@ def find_block_size(encryption_oracle, constant=True):
 
         for block_size in sorted(possible_sizes):
             """send payload of length x, so at least x-1 blocks should be identical"""
-            payload = random_char() * (blocks_to_send*block_size)
+            payload = random_bytes(1) * (blocks_to_send*block_size)
             enc_chunks = chunks(encryption_oracle(payload), block_size)
             for x in range(len(enc_chunks)-1):
                 if enc_chunks[x] == enc_chunks[x+1]:
@@ -82,6 +82,7 @@ def find_block_size(encryption_oracle, constant=True):
 
 def find_prefix_suffix_size(encryption_oracle, block_size=16):
     """Determine prefix and suffix sizes if ecb mode, sizes must be constant
+    Rarely may fail (if random data that are send unhappily matches prefix/suffix)
 
     Args:
         encryption_oracle(callable)
@@ -91,10 +92,10 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
         tuple(int,int): prefix_size, suffix_size
     """
     blocks_to_send = 5
-    payload = random_char() * (blocks_to_send * block_size)
+    payload = random_bytes(1) * (blocks_to_send * block_size)
     enc_chunks = chunks(encryption_oracle(payload), block_size)
-    # log.debug("Encryption of {}".format(payload))
-    # log.debug(print_chunks(enc_chunks))
+    log.debug("Encryption of length {}".format(blocks_to_send * block_size))
+    log.debug(print_chunks(enc_chunks))
 
     for position_start in range(len(enc_chunks) - 1):
         if enc_chunks[position_start] == enc_chunks[position_start + 1]:
@@ -102,32 +103,34 @@ def find_prefix_suffix_size(encryption_oracle, block_size=16):
                 if enc_chunks[position_start] != enc_chunks[position_start + y]:
                     break
             else:
-                log.debug("Controlled payload start at chunk {}".format(position_start))
+                log.success("Controlled payload start at chunk {}".format(position_start))
                 break
     else:
         log.critical_error("Position of controlled chunks not found")
 
-    changed_char = chr(ord(payload[0])-1)
+    log.info('Finding prefix')
+    changed_char = bytes([(payload[0] - 1)%256])
     for aligned_bytes in range(block_size):
         payload_new = payload[:aligned_bytes] + changed_char + payload[aligned_bytes+1:]
         enc_chunks_new = chunks(encryption_oracle(payload_new), block_size)
-        # log.debug("Encryption of {}".format(payload_new))
-        # log.debug(print_chunks(enc_chunks_new))
+        log.debug(print_chunks(chunks(payload_new, block_size)))
+        log.debug(print_chunks(enc_chunks_new))
         if enc_chunks_new[position_start] != enc_chunks[position_start]:
             prefix_size = position_start*block_size - aligned_bytes
-            log.info("Prefix size: {}".format(prefix_size))
+            log.success("Prefix size: {}".format(prefix_size))
             break
     else:
         log.critical_error("Size of prefix not found")
 
-    payload = random_char() * (block_size - (prefix_size % block_size))  # align to block_size
+    log.info('Finding suffix')
+    payload = random_bytes(1) * (block_size - (prefix_size % block_size))  # align to block_size
     encrypted = encryption_oracle(payload)
     suffix_size = len(encrypted) - len(payload) - prefix_size
     while True:
-        payload += random_char()
+        payload += random_bytes(1)
         suffix_size -= 1
         if len(encryption_oracle(payload)) > len(encrypted):
-            log.info("Suffix size: {}".format(suffix_size))
+            log.success("Suffix size: {}".format(suffix_size))
             break
     else:
         log.critical_error("Size of suffix not found")
@@ -152,7 +155,7 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
     """
     log.debug("Start decrypt function")
     if not alphabet:
-        alphabet = string.printable
+        alphabet = bytes(string.printable.encode())
 
     if not block_size:
         block_size = find_block_size(encryption_oracle, constant)
@@ -163,32 +166,35 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
             prefix_size, secret_size = find_prefix_suffix_size(encryption_oracle, block_size)
 
         """Start decrypt"""
-        secret = ''
-        aligned_bytes = random_char() * (block_size - (prefix_size % block_size))
+        secret = bytes(b'')
+        aligned_bytes = random_bytes(1) * (block_size - (prefix_size % block_size))
         if len(aligned_bytes) == block_size:
-            aligned_bytes = ''
-        aligned_bytes_suffix = random_char() * (block_size - (secret_size % block_size))
+            aligned_bytes = bytes(b'')
+
+        aligned_bytes_suffix = random_bytes(1) * (block_size - (secret_size % block_size))
         if len(aligned_bytes_suffix) == block_size:
-            aligned_bytes_suffix = ''
+            aligned_bytes_suffix = bytes(b'')
+
         block_to_find_position = -1
         controlled_block_position = (prefix_size+len(aligned_bytes)) // block_size
 
         while len(secret) < secret_size:
             if (len(secret)+1) % block_size == 0:
                 block_to_find_position -= 1
-            payload = aligned_bytes + aligned_bytes_suffix + random_char() + secret
+            payload = aligned_bytes + aligned_bytes_suffix + random_bytes(1) + secret
             enc_chunks = chunks(encryption_oracle(payload), block_size)
             block_to_find = enc_chunks[block_to_find_position]
 
             log.debug("To guess at position {}:".format(block_to_find_position))
-            log.debug("Plain: " + print_chunks(chunks('P'*prefix_size+payload+'S'*secret_size, block_size)))
+            log.debug("Plain: " + print_chunks(chunks(bytes(b'P'*prefix_size) + payload + bytes(b'S'*secret_size), block_size)))
             log.debug("Encry: " + print_chunks(enc_chunks)+"\n")
 
-            for guessed_char in alphabet:
+            for guessed_char in range(256):
+                guessed_char = bytes([guessed_char])
                 payload = aligned_bytes + add_padding(guessed_char + secret, block_size)
                 enc_chunks = chunks(encryption_oracle(payload), block_size)
 
-                log.debug("Plain: " + print_chunks(chunks('P' * prefix_size + payload + 'S' * secret_size, block_size)))
+                log.debug("Plain: " + print_chunks(chunks(bytes(b'P'*prefix_size) + payload + bytes(b'S'*secret_size), block_size)))
                 log.debug("Encry: " + print_chunks(enc_chunks)+"\n")
                 if block_to_find == enc_chunks[controlled_block_position]:
                     secret = guessed_char + secret
@@ -196,7 +202,7 @@ def decrypt(encryption_oracle, constant=True, block_size=16, prefix_size=None, s
                     break
             else:
                 log.critical_error("Char not found, try change alphabet. Secret so far: {}".format(repr(secret)))
-        log.info("Secret(hex): {}".format(b2h(secret)))
+        log.success("Secret(hex): {}".format(b2h(secret)))
         return secret
     else:
         log.debug("constant == False")
@@ -230,7 +236,7 @@ def known_plaintexts(pairs, ciphertext, block_size=16):
 
     target_ciphertext_blocks = chunks(ciphertext, block_size)
     for cipher_block_no in range(len(target_ciphertext_blocks)):
-        if target_ciphertext_blocks[cipher_block_no] in result_mapping.keys():
+        if target_ciphertext_blocks[cipher_block_no] in list(result_mapping.keys()):
             target_ciphertext_blocks[cipher_block_no] = result_mapping[target_ciphertext_blocks[cipher_block_no]]
 
     return target_ciphertext_blocks, result_mapping

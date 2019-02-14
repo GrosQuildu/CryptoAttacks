@@ -1,22 +1,20 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import os
 import subprocess
+from os.path import abspath, dirname
+from os.path import join as join_path
 
-from Block import test_ecb
-from Block import test_cbc
-from PublicKey import test_rsa
 import test_Hash
+from Block import test_cbc, test_ecb
+from PublicKey import test_rsa
 
 SAGE_TESTS = True
+current_path = dirname(abspath(__file__))
 
 print("TEST BLOCK CIPHERS")
-os.chdir('./Block/')
-
 print("Test ecb")
 test_ecb.run()
 
@@ -25,24 +23,21 @@ test_cbc.run()
 
 print("\nTest whitebox aes")
 if SAGE_TESTS:
-    subprocess.call(["sage", "./test_whitebox_aes.sage"])
+    subprocess.call(["sage", join_path(current_path, "Block/test_whitebox_aes.sage")])
 print("\n")
 # --------------------------------------------------
 
 print("TEST PUBLIC KEY")
-os.chdir('../PublicKey/')
 print("Test rsa")
 test_rsa.run()
 print("\n")
 # --------------------------------------------------
 
 print("TEST HASH")
-os.chdir('../')
 test_Hash.run()
 print("\n")
 # --------------------------------------------------
 
 print("TEST ELLIPTIC CURVES")
-os.chdir('./EllipticCurve')
 if SAGE_TESTS:
-    subprocess.call(["sage", "./test_ecdsa.sage"])
+    subprocess.call(["sage", join_path(current_path, "EllipticCurve/test_ecdsa.sage")])

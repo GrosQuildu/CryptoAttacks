@@ -1,9 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from CryptoAttacks.Utils import log
+from builtins import range
+
 from CryptoAttacks.Math import gcd, invmod
+from CryptoAttacks.Utils import log
 
 
 class LCG(object):
@@ -20,7 +20,7 @@ class LCG(object):
         self.m = m
         self.state = seed
 
-    def next(self):
+    def __next__(self):
         """Returns next state"""
         new_state = (self.state*self.a + self.b) % self.m
         self.state = new_state
@@ -47,8 +47,8 @@ class LCG(object):
             seed, a, b, m(int): assuming first state in s was derived from seed
         """
         if m is None:
-            t = [s[n + 1] - s[n] for n in xrange(len(s) - 1)]
-            u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in xrange(len(t) - 2)]
+            t = [s[n + 1] - s[n] for n in range(len(s) - 1)]
+            u = [abs(t[n + 2] * t[n] - t[n + 1] ** 2) for n in range(len(t) - 2)]
             m = gcd(*u)
             log.success("m = {}".format(m))
 

@@ -1,12 +1,11 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import int, range, pow
+import operator
+from builtins import int, pow, range, zip
 from functools import reduce
 
 from CryptoAttacks.Utils import log
-import operator
+
 
 def continued_fractions(n, d):
     fractions = []
@@ -68,7 +67,7 @@ def crt(a, n):
     sum_crt = 0
 
     for n_i, a_i in zip(n, a):
-        p = prod / n_i
+        p = prod // n_i
         sum_crt += a_i * invmod(p, n_i) * p
     return int(sum_crt % prod)
 
@@ -115,7 +114,7 @@ def lcm(*args):
 
     if len(args) == 2:
         a, b = args
-        return (a*b) / gcd(a, b)
+        return (a*b) // gcd(a, b)
     else:
         l = 1
         for number in args:

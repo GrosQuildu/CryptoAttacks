@@ -1,10 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from builtins import range
+from builtins import bytes, map, range
 
-from CryptoAttacks.Utils import *
+from CryptoAttacks.Utils import add_md_padding, b2h, b2i, chunks, i2b, log
 
 
 def _left_rotate(val, r_bits, max_bits=32):
@@ -44,7 +42,7 @@ def compression_function_sha1(chunk, state):
     """
     state = state[:]
     w = chunks(chunk, 4)
-    w = map(b2i, w)
+    w = list(map(b2i, w))
     for i in range(16, 80):
         w.append(_left_rotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1, 32))
 
@@ -97,7 +95,7 @@ def sha1(data, initial_state=None, padding=None):
     else:
         data += padding
     final_state = merkle_damgard(data, initial_state, compression_function_sha1)
-    return ''.join(map(lambda x: i2b(x, size=32), final_state))
+    return bytes(b''.join([i2b(x, size=32) for x in final_state]))
 
 
 def compression_function_md4(chunk, state):
@@ -124,7 +122,7 @@ def compression_function_md4(chunk, state):
 
     state = state[:]
     x = chunks(chunk, 4)
-    x = map(lambda one_x: b2i(one_x, endian='little'), x)
+    x = [b2i(one_x, endian='little') for one_x in x]
     a, b, c, d = state
 
     a = _f1(a, b, c, d, 0, 3, x)
@@ -204,7 +202,7 @@ def md4(data, initial_state=None, padding=None):
     else:
         data += padding
     final_state = merkle_damgard(data, initial_state, compression_function_md4)
-    return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
+    return bytes(b''.join([i2b(x, size=32, endian='little') for x in final_state]))
 
 
 def compression_function_md5(chunk, state):
@@ -238,7 +236,7 @@ def md5(data, initial_state=None, padding=None):
     else:
         data += padding
     final_state = merkle_damgard(data, initial_state, compression_function_md5)
-    return ''.join(map(lambda x: i2b(x, size=32, endian='little'), final_state))
+    return bytes(b''.join([i2b(x, size=32, endian='little') for x in final_state]))
 
 
 def length_extension(old_hash, size, new_message, type='sha1'):
@@ -265,8 +263,8 @@ def length_extension(old_hash, size, new_message, type='sha1'):
         log.critical_error("Not implemented, type must be one of {}".format(implemented_functions))
         return None
 
-    old_padding = add_md_padding('a' * size, endian=endian)[size:]
+    old_padding = add_md_padding(bytes(b'a' * size), endian=endian)[size:]
     new_data_size = len(new_message)+len(old_padding)+size
-    new_padding = add_md_padding('a'*new_data_size, endian=endian)[new_data_size:]
-    h = map(lambda x: b2i(x, endian=endian), chunks(old_hash, 4))
+    new_padding = add_md_padding(bytes(b'a'*new_data_size), endian=endian)[new_data_size:]
+    h = [b2i(x, endian=endian) for x in chunks(old_hash, 4)]
     return hash_function(new_message, h, new_padding), old_padding+new_message

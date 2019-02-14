@@ -1,6 +1,5 @@
 import sys
-sys.path.append('../../EllipticCurve')
-from ecdsa_sage import *
+from CryptoAttacks.EllipticCurve.ecdsa import *
 
 from hashlib import sha1
 from CryptoAttacks.Utils import i2b, b2i

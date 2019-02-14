@@ -1,5 +1,15 @@
 
 ```python
+class Log(object):
+    @property
+    def level(self):
+    def debug(self, a):
+    def info(self, a):
+    def success(self, a):
+    def error(self, a):
+    def critical_error(self, a):
+
+
 def b2h(a, size=0):
     """Encode bytes to hex string"""
 
@@ -20,7 +30,7 @@ def b2i(number_bytes, endian='big'):
     """Unpack bytes into int
 
     Args:
-        number_bytes(string)
+        number_bytes(bytes)
         endian(string): big/little
 
     Returns:
@@ -38,7 +48,7 @@ def i2b(number, size=0, endian='big', signed=False):
         signed(bool): pack as two's complement if True (size must be given)
 
     Returns:
-        string
+        bytes
     """
 
 def xor(*args, **kwargs):
@@ -65,4 +75,29 @@ def add_md_padding(data, endian='big'):
     Returns: data+padding(string)
     """
 
+def chunks(data, block_size):
+    """Split data to list of chunks"""
+
+def factordb(number):
+    """Ask factordb.com for factorization
+
+    Args:
+        number(int)
+    Returns:
+        status(string):
+                        C - Composite, no factors known
+                        CF - Composite, factors known
+                        FF - Composite, fully factored
+                        P - Definitely prime
+                        Prp - Probably prime
+                        U - Unknown
+                        Unit - Just for 1
+                        N - This number is not in database (and was not added due to your settings)
+                        * - Added to database during this request
+        digits(int)
+        factors(dict): {factor: power,...}
+    """
+
+def random_bytes(amount=1):
+    
 ```
