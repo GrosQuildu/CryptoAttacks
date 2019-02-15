@@ -327,8 +327,8 @@ def babystep_giantstep(g, h, p, upper_bound):
 
 
 def pohlig_hellman(g, h, p, p_order_factors):
-    """Pohlig-Hellman factorization method
-    g^x = h % p, find x if order of p is smooth
+    """Pohlig-Hellman factorization method (with babystep-giantstep)
+    p_order_factors(dict): factors of p's order
 
     Args:
         g, h, p(int)

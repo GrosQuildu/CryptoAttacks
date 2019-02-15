@@ -33,6 +33,8 @@ pip install .
 	+ [ECB](CryptoAttacks/docs/Block/ecb.md)
 		+ Byte-at-time decryption
 		+ Known plaintexts
+	+ [GCM](CryptoAttacks/docs/Block/gcm.md)
+		+ auth key recovery with biased nonce
     + [Whitebox AES](CryptoAttacks/docs/Block/whitebox_aes.md)
 	    + Differential fault analysis*
 * Public Key
@@ -45,9 +47,13 @@ pip install .
 		+ Parity oracle
 		+ Blinding (signatures/ciphertexts)
 		+ Bleichenbacher'06 signature forgery
+		+ Duplicate-Signature Key Selection
 * Elliptic Curves
     + [ECDSA](CryptoAttacks/docs/EllipticCurve/ecdsa.md)
         + Biased nonce (LSB equals to zero)*
+        + Duplicate-Signature Key Selection*
+    + Pohlig-Hellman*
+    + [Discrete log on singular curves\*](CryptoAttacks/docs/EllipticCurve/singular.md)
 * [Hash](CryptoAttacks/docs/Hash.md)
     * Length extension (sha1, md4)
 * [PRNG](CryptoAttacks/docs/PRNG.md)

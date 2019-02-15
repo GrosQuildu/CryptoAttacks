@@ -70,4 +70,29 @@ def legendre(a, p):
 
 def tonelli_shanks(n, p):
     """Find r such that r^2 = n % p, r2 == p-r"""
+
+def generate_smooth_prime(bit_size, primitive_roots=[], smooth_bit_size=50, exclude=[]):
+    """Generate smooth prime n
+
+    Args:
+        bit_size(int): size of generated prime in bits
+        primitive_roots(list(int)): list of numbers that will be primitive roots modulo n
+        smooth_bit_size(int): most factors of n-1 will be of this bit size   
+        exclude(list(int)): n-1 won't have any factor from that list
+
+    Returns:
+        int: n
+    """
+
+def pohlig_hellman(g, h, p, p_order_factors):
+    """Pohlig-Hellman factorization method (with babystep-giantstep)
+    g^x = h % p, find x if order of p is smooth
+
+    Args:
+        g, h, p(int)
+        p_order_factors(dict): factors of p's order
+
+    Returns:
+        int: x
+    """
 ```

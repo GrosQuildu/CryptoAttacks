@@ -223,4 +223,26 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
     """
 
 
+def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
+    """Duplicate-Signature Key Selection on RSA
+    Create key pair verifies given signature
+
+    signature^e == hash_function(message) % n
+
+    So if we have someone's public key (with n) and signature s of some message signed
+    with corresponding private key we can create new key pair that will verify the signature,
+    BUT new e will be large
+
+    Can also be used stuff like generating key pair that will decrypt given message to choosen plaintext
+
+    Args:
+        message(int/arg for hash_function)
+        signature(int)
+        n(int)
+        smooth_bit_size(int): to tweak, most factors of p-1 and q-1 will be of this bit size 
+        hash_function(NoneType/callable): converting message to int
+
+    Returns:
+        tuple(int): n', factors of p'-1, factors of q'-1, e', d'
+    """
 ```
