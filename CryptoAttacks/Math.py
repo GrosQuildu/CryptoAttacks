@@ -326,33 +326,36 @@ def babystep_giantstep(g, h, p, upper_bound):
         y = (y*g_m) % p
 
 
-def pohlig_hellman(g, h, p, p_order_factors):
-    """Pohlig-Hellman factorization method (with babystep-giantstep)
-    p_order_factors(dict): factors of p's order
+def pohlig_hellman(g, h, n, n_order_factors):
+    """Pohlig-Hellman discrete logarithm method (with babystep-giantstep)
+    g^x == h % n
 
     Args:
-        g, h, p(int)
-        p_order_factors(dict)
+        g, h, n(int)
+        n_order_factors(dict): factors of n's order (euler_phi(n))
 
     Returns:
         int: x
     """
+    no = product(n_order_factors)
     xi = []
-    ci = 0
-    for pi, ei in p_order_factors.items():
+    ci, loop_size = 1, len(n_order_factors.keys())
+    for pi, ei in n_order_factors.items():
+        log.debug('Pohlig-Hellman iteration {}/{}'.format(ci, loop_size))
         ci += 1
-        print('now', ci, len(p_order_factors.keys()))
-        gi = pow(g, (p-1)//(pi**ei), p)  # gi have order pi**ei
-        hi = pow(h, (p-1)//(pi**ei), p)  # hi is in <gi>
+
+        gi = pow(g, no//(pi**ei), n)  # gi have order pi**ei
+        hi = pow(h, no//(pi**ei), n)  # hi is in <gi>
 
         xk = 0
-        gamma = pow(gi, pi**(ei-1), p)  # gamma has order pi
+        gamma = pow(gi, pi**(ei-1), n)  # gamma has order pi
         for k in range(ei):
-            hk = invmod(pow(gi, xk, p), p)
-            hk = pow(hk * hi, pi**(ei-1-k), p)  # hk is in <gamma>
-            dk = babystep_giantstep(gamma, hk, p, pi)
+            hk = invmod(pow(gi, xk, n), n)
+            hk = pow(hk * hi, pi**(ei-1-k), n)  # hk is in <gamma>
+            dk = babystep_giantstep(gamma, hk, n, pi)
             if dk is None:
                 return None
             xk = (xk + pow(pi, k, pi**ei)*dk) % (pi**ei)
         xi.append(xk)
-    return crt(xi, [pi**ei for pi, ei in p_order_factors.items()])
+        
+    return crt(xi, [pi**ei for pi, ei in n_order_factors.items()])
