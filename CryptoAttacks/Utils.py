@@ -176,10 +176,8 @@ def xor(*args, **kwargs):
         max_size = len(max(args, key=len))
         result = bytes(b'\x00' * max_size)
     for one in args:
-        tmp = bytes(b'')
-        for x in range(len(result)):
-            tmp += bytes([result[x] ^ one[x%len(one)]])
-        result = tmp
+        one = bytes(one.encode())
+        result = bytes([result[x] ^ one[x%len(one)] for x in range(len(result))])
     return result
 
 
@@ -296,7 +294,7 @@ def factordb(number):
 
     url = 'http://factordb.com/index.php'
     resp = requests.get(url, params={'query': number})
-    dom = BeautifulSoup(resp.text)
+    dom = BeautifulSoup(resp.text, features="html.parser")
     results = dom.findAll('table')[1].findAll('tr')[2]
 
     status = results.findAll('td')[0].text
