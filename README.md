@@ -54,6 +54,7 @@ pip install .
         + Duplicate-Signature Key Selection*
     + Pohlig-Hellman*
     + [Discrete log on singular curves\*](CryptoAttacks/docs/EllipticCurve/singular.md)
+    + [Invalid curves attack](CryptoAttacks/docs/EllipticCurve/invalid_curves.md)
 * [Hash](CryptoAttacks/docs/Hash.md)
     * Length extension (sha1, md4)
 * [PRNG](CryptoAttacks/docs/PRNG.md)
