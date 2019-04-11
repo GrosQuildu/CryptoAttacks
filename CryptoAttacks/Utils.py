@@ -166,24 +166,28 @@ def is_printable(a, alphabet=string.printable, reliability=100.0):
 def xor(*args, **kwargs):
     """Xor given values
 
+    Args:
         args - bytes to be xored
-        expand - don't expand bytes to size of the longest string if False
-    Return xored bytes
+        expand(bool) - don't expand bytes to size of the longest string if False
+
+    Return:
+        xored bytes
     """
     if 'expand' in kwargs and kwargs['expand'] is False:
-        result = bytes(b'\x00' * len(min(args, key=len)))
+        result = bytes(len(min(args, key=len)))
     else:
         max_size = len(max(args, key=len))
-        result = bytes(b'\x00' * max_size)
+        result = bytes(max_size)
+
     for one in args:
-        one = bytes(one)
-        result = bytes([result[x] ^ one[x%len(one)] for x in range(len(result))])
+        one = bytes(one.encode())
+        result = bytes([result[x] ^ one[x % len(one)] for x in range(len(result))])
     return result
 
 
 def add_padding(data, block_size=16):
     """add PKCS#7 padding"""
-    size = block_size - (len(data)%block_size)
+    size = block_size - (len(data) % block_size)
     return data + bytes([size]*size)
 
 
@@ -198,11 +202,11 @@ def strip_padding(data, block_size=16):
 def add_rsa_signature_padding(data, size=1024, hash_function='sha1'):
     """add PKCS#1 v1.5 sign padding"""
     hash_asn1 = {
-        'md5': '\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10',
-        'sha1': '\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14',
-        'sha256': '\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20',
-        'sha384': '\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
-        'sha512': '\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
+        'md5': b'\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10',
+        'sha1': b'\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14',
+        'sha256': b'\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20',
+        'sha384': b'\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30',
+        'sha512': b'\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40'
     }
     if hash_function not in list(hash_asn1.keys()):
         log.critical_error("Hash function {} not supported".format(hash_function))
