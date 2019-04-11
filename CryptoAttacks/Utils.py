@@ -176,7 +176,7 @@ def xor(*args, **kwargs):
         max_size = len(max(args, key=len))
         result = bytes(b'\x00' * max_size)
     for one in args:
-        one = bytes(one.encode())
+        one = bytes(one)
         result = bytes([result[x] ^ one[x%len(one)] for x in range(len(result))])
     return result
 
