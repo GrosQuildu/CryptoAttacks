@@ -180,7 +180,7 @@ def xor(*args, **kwargs):
         result = bytes(max_size)
 
     for one in args:
-        one = bytes(one.encode())
+        one = bytes(one)
         result = bytes([result[x] ^ one[x % len(one)] for x in range(len(result))])
     return result
 
