@@ -249,6 +249,29 @@ def tonelli_shanks(n, p):
     return r
 
 
+def find_generator(p, factors):
+    """Find generator of cyclic group of order p-1
+    
+    Args:
+        p(int)
+        factors(dict): factorization of p-1, {2:3, 17:1,}
+
+    Returns:
+        int: generator of Zp*
+    """
+    g = 1
+    for one_factor in factors:
+        b = 1
+        while b != 1:
+            a = randint(3, p-1)
+            if gcd(a, p-1) != 1:
+                continue
+            b = pow(a, (p-1)//one_factor, p)
+        y = pow(a, (p-1)//(one_factor**factors[one_factor]), p)
+        g *= y
+    return g
+
+
 def generate_smooth_prime(bit_size, primitive_roots=[], smooth_bit_size=50, exclude=[]):
     """Generate smooth prime n
 

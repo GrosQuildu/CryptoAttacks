@@ -71,6 +71,17 @@ def legendre(a, p):
 def tonelli_shanks(n, p):
     """Find r such that r^2 = n % p, r2 == p-r"""
 
+def find_generator(p, factors):
+    """Find generator of cyclic group of order p-1
+    
+    Args:
+        p(int)
+        factors(dict): factorization of p-1, {2:3, 17:1,}
+
+    Returns:
+        int: generator of Zp*
+    """
+
 def generate_smooth_prime(bit_size, primitive_roots=[], smooth_bit_size=50, exclude=[]):
     """Generate smooth prime n
 
