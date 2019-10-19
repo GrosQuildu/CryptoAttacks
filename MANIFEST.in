@@ -1,0 +1,3 @@
+include CryptoAttacks/tests/PublicKey/*.pem
+include CryptoAttacks/tests/PublicKey/common_prime/*.pem
+include CryptoAttacks/data/*.txt

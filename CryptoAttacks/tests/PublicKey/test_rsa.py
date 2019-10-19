@@ -265,7 +265,7 @@ def test_dsks():
             signature = key.decrypt(message)
 
             n_p, p_order_factors, q_order_factors, e_p, d_p = dsks(message, signature, key.n,
-                                                                smooth_bit_size=20, hash_function=None)
+                                                                smooth_bit_size=30, hash_function=None)
             key_p = RSAKey(n_p, e=e_p, d=d_p)
 
             p_p = product(p_order_factors)+1
@@ -280,15 +280,15 @@ def test_dsks():
 def run():
     log.level = 'debug'
 
-    test_RSAKey()
-    test_blinding()
-    test_small_e_msg()
-    test_faulty()
-    test_hastad()
-    test_common_primes()
-    test_wiener()
-    test_parity()
-    test_bleichenbacher_signature_forgery()
+    # test_RSAKey()
+    # test_blinding()
+    # test_small_e_msg()
+    # test_faulty()
+    # test_hastad()
+    # test_common_primes()
+    # test_wiener()
+    # test_parity()
+    # test_bleichenbacher_signature_forgery()
     test_dsks()
 
 if __name__ == "__main__":
