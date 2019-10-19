@@ -13,7 +13,7 @@
 ```
 git clone https://github.com/GrosQuildu/CryptoAttacks
 cd CryptoAttacks
-pip install .
+python ./setup.py install
 ```
 
 ### Attacks:
