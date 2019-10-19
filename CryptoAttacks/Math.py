@@ -45,10 +45,13 @@ def convergents(e):
 def product(numbers):
     if len(numbers) == 0:
         return 0
-    if type(numbers) == list:
-        return reduce(lambda x, y: x * y, numbers)
     elif type(numbers) == dict:
         return reduce(lambda x, y: x * (y**numbers[y]), numbers, 1)
+    else:
+        try:
+            return reduce(lambda x, y: x * y, numbers)
+        except:
+            pass
     return False
 
 
