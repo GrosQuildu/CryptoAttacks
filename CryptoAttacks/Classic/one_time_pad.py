@@ -6,6 +6,7 @@ import os
 import re
 from builtins import map, range
 from collections import defaultdict
+import string
 
 from CryptoAttacks.Math import gcd
 from CryptoAttacks.Utils import (chunks, hamming_distance, is_printable, log,
