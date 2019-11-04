@@ -230,6 +230,37 @@ class RSAKey(object):
         return self.pyrsa_key.exportKey(format, passphrase, pkcs)
 
 
+def _prepare_ciphertexts(key=None, ciphertext=None, ciphertexts=None):
+    """Helper function used in various rsa functions.
+        Update key (if provided) and yield ciphertexts to crack
+
+    Yields:
+        tuple: (text_no, ciphertext_to_crack)
+    """
+    if ciphertexts is None:
+        ciphertexts = []
+    if ciphertext is not None:
+        ciphertexts.append(ciphertext)
+
+    if key is None:
+        for cipher in ciphertexts:
+            yield None, cipher
+    else:
+        for cipher in ciphertexts:
+            matching_texts = [(text_no, text) for text_no, text in enumerate(key.texts) if
+                              'cipher' in text and text['cipher'] == cipher]
+            if len(matching_texts) == 0:
+                key.add_ciphertext(cipher)
+                yield len(key.texts) - 1, cipher
+            else:
+                assert len(matching_texts) == 1
+                text_no, text = matching_texts
+                if 'plain' in text:
+                    log.success("Plaintext for ciphertext {cipher} already known: {plain}!".format(**text))
+                else:
+                    yield text_no, cipher
+
+
 def factors_from_d(n, e, d):
     """Factorize n to p and q given e and d"""
     k = e * d - 1
@@ -722,11 +753,8 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
     except NotImplementedError:
         log.critical_error("PKCS1.5 padding oracle not implemented")
 
-    if ciphertext is not None:
-        key.add_ciphertext(ciphertext)
-
-    ceil = lambda a, b: a // b + (a % b > 0)
-    floor = lambda a, b: a // b
+    def ceil(a, b): return a // b + (a % b > 0)
+    def floor(a, b): return a // b
 
     def update_intervals(M, B, s, n):
         # step 3
@@ -738,76 +766,72 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         return M2
 
     recovered = {}
-    for text_no in range(len(key.texts)):
-        if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
-            if ciphertext is not None and ciphertext != key.texts[text_no]['cipher']:
-                continue
-            cipher = key.texts[text_no]['cipher']
-            log.info("Decrypting {}".format(cipher))
+    for text_no, cipher in _prepare_ciphertexts(key=key, ciphertext=ciphertext):
+        log.info("Decrypting {}".format(cipher))
 
-            n = key.n
-            e = key.e
-            B = pow(2, key.size - 2)
+        n = key.n
+        e = key.e
+        B = pow(2, key.size - 2)
 
-            # blind it
-            log.debug('Blinding the ciphertext')
-            s0 = 1
-            cipher0 = cipher
-            while not pkcs15_padding_oracle(cipher0):
-                s0 += 1
-                cipher0 = (cipher * pow(s0, e, n)) % n
-            M0 = [(2 * B, 3 * B - 1)]
-            i = 1
-            log.debug('Found s0: {}'.format(hex(s0)))
+        # blind it
+        log.debug('Blinding the ciphertext')
+        s0 = 1
+        cipher0 = cipher
+        while not pkcs15_padding_oracle(cipher0):
+            s0 += 1
+            cipher0 = (cipher * pow(s0, e, n)) % n
+        M0 = [(2 * B, 3 * B - 1)]
+        i = 1
+        log.debug('Found s0: {}'.format(hex(s0)))
 
-            # step 2.a
-            s1 = n / (3 * B)
+        # step 2.a
+        s1 = n / (3 * B)
+        cipher1 = (cipher0 * pow(s1, e, n)) % n
+        while not pkcs15_padding_oracle(cipher1):
+            s1 += 1
             cipher1 = (cipher0 * pow(s1, e, n)) % n
-            while not pkcs15_padding_oracle(cipher1):
-                s1 += 1
-                cipher1 = (cipher0 * pow(s1, e, n)) % n
-            Mi = update_intervals(M0, B, s1, n)
-            si = s1
-            i += 1
+        Mi = update_intervals(M0, B, s1, n)
+        si = s1
+        i += 1
 
-            interval_narrowed = False
-            while not interval_narrowed:
-                if len(Mi) == 0:
-                    log.error("Something wrong, len(Mi) == 0")
-                    return None
+        interval_narrowed = False
+        while not interval_narrowed:
+            if len(Mi) == 0:
+                log.error("Something wrong, len(Mi) == 0")
+                return None
 
-                elif len(Mi) > 1:
-                    # step 2.b
-                    si = si + 1
+            elif len(Mi) > 1:
+                # step 2.b
+                si = si + 1
+                cipheri = (cipher0 * pow(si, e, n)) % n
+                while not pkcs15_padding_oracle(cipheri):
+                    s1 += 1
                     cipheri = (cipher0 * pow(si, e, n)) % n
-                    while not pkcs15_padding_oracle(cipheri):
-                        s1 += 1
-                        cipheri = (cipher0 * pow(si, e, n)) % n
+
+            else:
+                # step 2.c
+                a, b = Mi[0]
+
+                if a != b:
+                    si_found = False
+                    while not si_found:
+                        ri = ceil(2 * (b * si - 2 * B), n)
+                        for si in range(ceil(2 * B + ri * n, b), ceil(3 * B + ri * n, a) + 1):
+                            cipheri = (cipher0 * pow(si, e, n)) % n
+                            if pkcs15_padding_oracle(cipheri):
+                                si_found = True
+                                break
 
                 else:
-                    # step 2.c
-                    a, b = Mi[0]
+                    # step 4
+                    log.success("Interval narrowed to one value")
+                    log.debug("plaintext = {}".format(hex(a)))
+                    interval_narrowed = True
 
-                    if a != b:
-                        si_found = False
-                        while not si_found:
-                            ri = ceil(2 * (b * si - 2 * B), n)
-                            for si in range(ceil(2 * B + ri * n, b), ceil(3 * B + ri * n, a) + 1):
-                                cipheri = (cipher0 * pow(si, e, n)) % n
-                                if pkcs15_padding_oracle(cipheri):
-                                    si_found = True
-                                    break
+            Mi = update_intervals(Mi, B, si, n)
 
-                    else:
-                        # step 4
-                        log.success("Interval narrowed to one value")
-                        log.debug("plaintext = {}".format(hex(a)))
-                        interval_narrowed = True
-
-                Mi = update_intervals(Mi, B, si, n)
-
-            recovered[ciphertext] = Mi[0][0]
-            key.texts[text_no]['plain'] = recovered[ciphertext]
+        recovered[ciphertext] = Mi[0][0]
+        key.texts[text_no]['plain'] = recovered[ciphertext]
 
     return recovered
 
