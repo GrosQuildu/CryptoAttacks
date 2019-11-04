@@ -41,14 +41,14 @@ class RSAKey(object):
         if d or p or q:
             if not d:
                 if p:
-                    q = n//p
-                p = n//q
+                    q = n // p
+                p = n // q
                 d = int(invmod(e, (p - 1) * (q - 1)))
             else:
                 if p or q:
                     if p:
-                        q = n//p
-                    p = n//q
+                        q = n // p
+                    p = n // q
                 else:
                     p, q = factors_from_d(n, e, d)
             tup = (n, e, d, p, q)
@@ -59,7 +59,6 @@ class RSAKey(object):
         self.n, self.e, self.d, self.p, self.q = n, e, d, p, q
         self.size = int(math.ceil(math.log(n, 2) / 8.0) * 8)
         self.pyrsa_key = PyRSA.construct(tup)
-
 
     def encrypt(self, plaintext):
         """Raw encryption
@@ -75,7 +74,6 @@ class RSAKey(object):
                     "Plaintext to decrypt must be number or be convertible to number ({})".format(plaintext))
         return self.pyrsa_key.encrypt(int(plaintext), 0)[0]
 
-
     def decrypt(self, ciphertext):
         """Raw decryption
 
@@ -90,7 +88,6 @@ class RSAKey(object):
                     "Ciphertext to decrypt must be number or be convertible to number ({})".format(ciphertext))
         return self.pyrsa_key.decrypt(int(ciphertext))
 
-
     def copy(self, identifier=''):
         if self.has_private():
             tmp_key = RSAKey(self.n, self.e, self.d, self.p, self.q, identifier=identifier)
@@ -99,17 +96,14 @@ class RSAKey(object):
         tmp_key.texts = deepcopy(self.texts)
         return tmp_key
 
-
     def publickey(self, identifier=''):
         """Extract public key"""
-        derived_public_key = RSAKey(self.n, self.e, identifier=identifier+' - publickey')
+        derived_public_key = RSAKey(self.n, self.e, identifier=identifier + ' - publickey')
         derived_public_key.texts = deepcopy(self.texts)
         return derived_public_key
 
-
     def has_private(self):
         return any([self.d, self.p, self.q])
-
 
     def add_ciphertext(self, ciphertext, position=None):
         """Args:
@@ -120,12 +114,12 @@ class RSAKey(object):
             try:
                 ciphertext = b2i(ciphertext)
             except:
-                log.critical_error("Ciphertext to add must be number or be convertible to number ({})".format(ciphertext))
+                log.critical_error(
+                    "Ciphertext to add must be number or be convertible to number ({})".format(ciphertext))
         if position is None:
             self.texts.append({'cipher': ciphertext})
         else:
             self.texts[position]['cipher'] = ciphertext
-
 
     def add_plaintext(self, plaintext, position=None):
         """Args:
@@ -141,7 +135,6 @@ class RSAKey(object):
             self.texts.append({'plain': plaintext})
         else:
             self.texts[position]['plain'] = plaintext
-
 
     def add_text_pair(self, ciphertext=None, plaintext=None):
         """Args: ciphertext(int), plaintext(int)"""
@@ -162,10 +155,8 @@ class RSAKey(object):
                 text_pair['plain'] = plaintext
         self.texts.append(text_pair)
 
-
     def clear_texts(self):
         self.texts = []
-
 
     def print_texts(self):
         print("key {} texts:".format(self.identifier))
@@ -179,17 +170,14 @@ class RSAKey(object):
             else:
                 print("Plaintext: null")
 
-
     def __str__(self):
         if self.has_private():
             return str(self.identifier) + " (private)"
         else:
             return str(self.identifier) + " (public)"
 
-
     def __repr__(self):
         return self.__str__()
-
 
     @staticmethod
     def generate(bits, e=0x10001, randfunc=None, progress_func=None, identifier=None):
@@ -202,7 +190,6 @@ class RSAKey(object):
         """
         tmp_key = PyRSA.generate(bits, e=int(e), randfunc=randfunc, progress_func=progress_func)
         return RSAKey(tmp_key.n, tmp_key.e, tmp_key.d, tmp_key.p, tmp_key.q, identifier=identifier)
-
 
     @staticmethod
     def construct(n, e=0x10001, d=None, p=None, q=None, identifier=None):
@@ -219,7 +206,6 @@ class RSAKey(object):
             RSAKey
         """
         return RSAKey(n, e, d, p, q, identifier=identifier)
-
 
     @staticmethod
     def import_key(filename, identifier=None, *args, **kwargs):
@@ -239,7 +225,6 @@ class RSAKey(object):
         else:
             return RSAKey(tmp_key.n, tmp_key.e, identifier=identifier)
 
-
     def export_key(self, format='PEM', passphrase=None, pkcs=1, *args, **kwargs):
         """Export key as string"""
         return self.pyrsa_key.exportKey(format, passphrase, pkcs)
@@ -250,15 +235,15 @@ def factors_from_d(n, e, d):
     k = e * d - 1
     while True:
         g = random.randint(2, n - 2)
-        b = k // (2**power_of_two(k))
+        b = k // (2 ** power_of_two(k))
         while b < k:
             gb = pow(g, b, n)
-            if gb != 1 and gb != n-1 and pow(gb, 2, n) == 1:
-                if gcd(gb-1, n) != 1:
-                    p = gcd(gb-1, n)
+            if gb != 1 and gb != n - 1 and pow(gb, 2, n) == 1:
+                if gcd(gb - 1, n) != 1:
+                    p = gcd(gb - 1, n)
                 else:
-                    p = gcd(gb+1, n)
-                return p, n//p
+                    p = gcd(gb + 1, n)
+                return p, n // p
             b *= 2
 
 
@@ -288,7 +273,7 @@ def small_e_msg(key, ciphertexts=None, max_times=100):
             msg, is_correct = gmpy2.iroot(ciphertext + times, key.e)
             if is_correct and pow(msg, key.e, key.n) == ciphertext:
                 msg = int(msg)
-                log.success("Found msg: {}, times=={}".format(i2h(msg), times//key.n))
+                log.success("Found msg: {}, times=={}".format(i2h(msg), times // key.n))
                 recovered.append(msg)
                 break
             times += key.n
@@ -705,7 +690,126 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
         return signatures
 
 
+def pkcs15_padding_oracle(ciphertext):
+    """Function implementing PKCS 1.5 Padding Oracle
 
+    Args:
+        ciphertext(int)
+
+    Returns:
+        bool: True if decrypted ciphertext has correct padding (starts with 0x0002 at least), False otherwise
+    """
+    raise NotImplementedError
+
+
+def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
+    """Given oracle that checks if ciphertext decrypts to some valid plaintext with PKCS1.5 padding
+    we can decrypt whole ciphertext
+    pkcs15_padding_oracle function must be implemented
+
+    http://archiv.infsec.ethz.ch/education/fs08/secsem/bleichenbacher98.pdf
+
+    Args:
+        pkcs15_padding_oracle(callable)
+        key(RSAKey): contains ciphertexts to decrypt
+
+    Returns:
+        dict: decrypted ciphertexts
+        update key texts
+    """
+    try:
+        pkcs15_padding_oracle(1)
+    except NotImplementedError:
+        log.critical_error("PKCS1.5 padding oracle not implemented")
+
+    if ciphertext is not None:
+        key.add_ciphertext(ciphertext)
+
+    ceil = lambda a, b: a // b + (a % b > 0)
+    floor = lambda a, b: a // b
+
+    def update_intervals(M, B, s, n):
+        # step 3
+        M2 = []
+        for Mi in M:
+            a, b = Mi
+            for r in range(ceil(a * s - 3 * B + 1, n), ceil(b * s - 2 * B, n) + 1):
+                M2.append((max(a, ceil(2 * B + r * n, s)), min(b, floor(3 * B - 1 + r * n, s))))
+        return M2
+
+    recovered = {}
+    for text_no in range(len(key.texts)):
+        if 'cipher' in key.texts[text_no] and 'plain' not in key.texts[text_no]:
+            if ciphertext is not None and ciphertext != key.texts[text_no]['cipher']:
+                continue
+            cipher = key.texts[text_no]['cipher']
+            log.info("Decrypting {}".format(cipher))
+
+            n = key.n
+            e = key.e
+            B = pow(2, key.size - 2)
+
+            # blind it
+            log.debug('Blinding the ciphertext')
+            s0 = 1
+            cipher0 = cipher
+            while not pkcs15_padding_oracle(cipher0):
+                s0 += 1
+                cipher0 = (cipher * pow(s0, e, n)) % n
+            M0 = [(2 * B, 3 * B - 1)]
+            i = 1
+            log.debug('Found s0: {}'.format(hex(s0)))
+
+            # step 2.a
+            s1 = n / (3 * B)
+            cipher1 = (cipher0 * pow(s1, e, n)) % n
+            while not pkcs15_padding_oracle(cipher1):
+                s1 += 1
+                cipher1 = (cipher0 * pow(s1, e, n)) % n
+            Mi = update_intervals(M0, B, s1, n)
+            si = s1
+            i += 1
+
+            interval_narrowed = False
+            while not interval_narrowed:
+                if len(Mi) == 0:
+                    log.error("Something wrong, len(Mi) == 0")
+                    return None
+
+                elif len(Mi) > 1:
+                    # step 2.b
+                    si = si + 1
+                    cipheri = (cipher0 * pow(si, e, n)) % n
+                    while not pkcs15_padding_oracle(cipheri):
+                        s1 += 1
+                        cipheri = (cipher0 * pow(si, e, n)) % n
+
+                else:
+                    # step 2.c
+                    a, b = Mi[0]
+
+                    if a != b:
+                        si_found = False
+                        while not si_found:
+                            ri = ceil(2 * (b * si - 2 * B), n)
+                            for si in range(ceil(2 * B + ri * n, b), ceil(3 * B + ri * n, a) + 1):
+                                cipheri = (cipher0 * pow(si, e, n)) % n
+                                if pkcs15_padding_oracle(cipheri):
+                                    si_found = True
+                                    break
+
+                    else:
+                        # step 4
+                        log.success("Interval narrowed to one value")
+                        log.debug("plaintext = {}".format(hex(a)))
+                        interval_narrowed = True
+
+                Mi = update_intervals(Mi, B, si, n)
+
+            recovered[ciphertext] = Mi[0][0]
+            key.texts[text_no]['plain'] = recovered[ciphertext]
+
+    return recovered
 
 
 def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
@@ -734,13 +838,14 @@ def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
     s = signature
 
     key_size = n.bit_length() + 1
-    
+
     while True:
-        p, p_order_factors = generate_smooth_prime(key_size//2,
-                                primitive_roots=[m, s], smooth_bit_size=smooth_bit_size)
+        p, p_order_factors = generate_smooth_prime(key_size // 2,
+                                                   primitive_roots=[m, s], smooth_bit_size=smooth_bit_size)
         q, q_order_factors = generate_smooth_prime(key_size - p.bit_length() + 1,
-                                primitive_roots=[m, s], smooth_bit_size=smooth_bit_size, exclude=p_order_factors)
-        n_p = p*q
+                                                   primitive_roots=[m, s], smooth_bit_size=smooth_bit_size,
+                                                   exclude=p_order_factors)
+        n_p = p * q
 
         if n_p > n:
             log.debug("n generated")
@@ -753,10 +858,10 @@ def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
             log.debug("ep' = {}".format(ep))
             log.debug("eq' = {}".format(eq))
 
-            e = crt([ep, eq], [p-1, (q-1)//2])
+            e = crt([ep, eq], [p - 1, (q - 1) // 2])
             log.debug("e' = {}".format(e))
 
-            d = invmod(e, (p-1)*(q-1))
+            d = invmod(e, (p - 1) * (q - 1))
             log.debug("d' = {}".format(d))
             return n_p, p_order_factors, q_order_factors, e, d
         else:
