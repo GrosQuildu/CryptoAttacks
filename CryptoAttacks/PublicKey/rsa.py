@@ -251,14 +251,14 @@ def _prepare_ciphertexts(key=None, ciphertext=None, ciphertexts=None):
                               'cipher' in text and text['cipher'] == cipher]
             if len(matching_texts) == 0:
                 key.add_ciphertext(cipher)
-                yield len(key.texts) - 1, cipher
+                yield len(key.texts) - 1, key.texts[len(key.texts) - 1]['cipher']
             else:
                 assert len(matching_texts) == 1
                 text_no, text = matching_texts
                 if 'plain' in text:
                     log.success("Plaintext for ciphertext {cipher} already known: {plain}!".format(**text))
                 else:
-                    yield text_no, cipher
+                    yield text_no, text[text_no]['cipher']
 
 
 def factors_from_d(n, e, d):
@@ -818,10 +818,12 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
     def update_intervals(M, B, s, n):
         # step 3
         M2 = []
-        for Mi in M:
-            a, b = Mi
+        for a, b in M:
             for r in range(ceil(a * s - 3 * B + 1, n), ceil(b * s - 2 * B, n) + 1):
-                M2.append((max(a, ceil(2 * B + r * n, s)), min(b, floor(3 * B - 1 + r * n, s))))
+                lb = max(a, ceil(2 * B + r * n, s))
+                ub = min(b, floor(3 * B - 1 + r * n, s))
+                M2.append((lb, ub))
+        M.clear()
         return M2
 
     recovered = {}
@@ -833,7 +835,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         B = pow(2, key.size - 2)
 
         # blind it
-        log.debug('Blinding the ciphertext')
+        log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
         s0 = 1
         cipher0 = cipher
         while not pkcs15_padding_oracle(cipher0):
@@ -844,17 +846,20 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         log.debug('Found s0: {}'.format(hex(s0)))
 
         # step 2.a
-        s1 = n / (3 * B)
+        s1 = ceil(n, (3 * B))  # or ceil?
         cipher1 = (cipher0 * pow(s1, e, n)) % n
         while not pkcs15_padding_oracle(cipher1):
             s1 += 1
             cipher1 = (cipher0 * pow(s1, e, n)) % n
+        log.debug('Found s1: {}'.format(hex(s1)))
         Mi = update_intervals(M0, B, s1, n)
         si = s1
         i += 1
 
         interval_narrowed = False
         while not interval_narrowed:
+            log.debug('len(Mi): {}'.format(len(Mi)))
+            # print(Mi)
             if len(Mi) == 0:
                 log.error("Something wrong, len(Mi) == 0")
                 return None
@@ -864,7 +869,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
                 si = si + 1
                 cipheri = (cipher0 * pow(si, e, n)) % n
                 while not pkcs15_padding_oracle(cipheri):
-                    s1 += 1
+                    si += 1
                     cipheri = (cipher0 * pow(si, e, n)) % n
 
             else:
@@ -889,7 +894,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
 
             Mi = update_intervals(Mi, B, si, n)
 
-        recovered[ciphertext] = Mi[0][0]
+        recovered[text_no] = Mi[0][0]
         key.texts[text_no]['plain'] = recovered[ciphertext]
 
     return recovered

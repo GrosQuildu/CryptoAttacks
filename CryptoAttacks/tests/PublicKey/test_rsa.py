@@ -14,8 +14,8 @@ from CryptoAttacks.PublicKey.rsa import (RSAKey,
                                          bleichenbacher_signature_forgery,
                                          blinding, common_primes, faulty,
                                          hastad, parity, parity_oracle,
-                                         small_e_msg, wiener, dsks)
-from CryptoAttacks.tests.PublicKey.rsa_oracles import parity_oracle
+                                         small_e_msg, wiener, dsks, bleichenbacher_pkcs15)
+from CryptoAttacks.tests.PublicKey.rsa_oracles import parity_oracle, pkcs15_padding_oracle
 from CryptoAttacks.Utils import (b2h, b2i, h2b, h2i, i2h, log, random_bytes,
                                  random_prime)
 
@@ -36,7 +36,7 @@ def test_RSAKey():
     assert key2.d == key.d
 
     for _ in range(10):
-        tmp = random_bytes(randint(1, key.size//8-10))
+        tmp = random_bytes(randint(1, key.size // 8 - 10))
         assert key.decrypt(key.encrypt(tmp)) == b2i(tmp)
 
 
@@ -83,7 +83,7 @@ def test_blinding():
 
     print("\nTest: blinding(key, signing_oracle=signing_oracle)")
     for _ in range(10):
-        msg_to_sign = b2i(random_bytes(randint(10, (key.size/8)-1)).replace(bytes(b'\n'), bytes(b'')))
+        msg_to_sign = b2i(random_bytes(randint(10, (key.size / 8) - 1)).replace(bytes(b'\n'), bytes(b'')))
         key.add_plaintext(msg_to_sign)
         signature = blinding(key, signing_oracle=signing_oracle)
         assert len(signature) == 1
@@ -94,7 +94,7 @@ def test_blinding():
 
     print("\nTest: blinding(key, decryption_oracle=decryption_oracle)")
     for _ in range(10):
-        plaintext = b2i(random_bytes(randint(10, (key.size/8)-1)).replace(bytes(b'\n'), bytes(b'')))
+        plaintext = b2i(random_bytes(randint(10, (key.size / 8) - 1)).replace(bytes(b'\n'), bytes(b'')))
         ciphertext = key.encrypt(plaintext)
         key.add_ciphertext(ciphertext)
         plaintext_recovered = blinding(key, decryption_oracle=decryption_oracle)
@@ -111,8 +111,8 @@ def test_wiener(tries=10):
         n_size = 1024
         p = random_prime(n_size // 2)
         q = random_prime(n_size // 2)
-        n = p*q
-        phi = (p-1)*(q-1)
+        n = p * q
+        phi = (p - 1) * (q - 1)
         while True:
             d = getrandbits(n_size // 4)
             if gcd(phi, d) == 1 and 81 * pow(d, 4) < n:
@@ -132,7 +132,7 @@ def test_common_primes():
     keys = []
     for f in os.listdir(keys_path):
         if f.endswith('.pem'):
-            tmp = RSAKey.import_key(keys_path+f)
+            tmp = RSAKey.import_key(keys_path + f)
             keys.append(tmp)
     priv_keys = common_primes(keys)
     assert len(priv_keys) != 0
@@ -143,7 +143,7 @@ def test_hastad():
     for n_size in [1024, 2048, 4096]:
         for e in [3, 17]:
             print("Test: e={}".format(e))
-            msg = randint(1000, 1 << (n_size-25))
+            msg = randint(1000, 1 << (n_size - 25))
             keys = []
             for _ in range(e):
                 tmp = RSAKey.generate(n_size, e=e).publickey()
@@ -265,16 +265,30 @@ def test_dsks():
             signature = key.decrypt(message)
 
             n_p, p_order_factors, q_order_factors, e_p, d_p = dsks(message, signature, key.n,
-                                                                smooth_bit_size=30, hash_function=None)
+                                                                   smooth_bit_size=30, hash_function=None)
             key_p = RSAKey(n_p, e=e_p, d=d_p)
 
-            p_p = product(p_order_factors)+1
-            q_p = product(q_order_factors)+1
+            p_p = product(p_order_factors) + 1
+            q_p = product(q_order_factors) + 1
 
             assert p_p * q_p == n_p
             assert key_p.p * key_p.q == n_p
             assert pow(signature, e_p, n_p) == message
-            assert pow(message, d_p, n_p) == signature  
+            assert pow(message, d_p, n_p) == signature
+
+
+def test_bleichenbacher_pkcs15():
+    key = RSAKey.import_key(join_path(current_path, 'private_key_256.pem'))
+    print("\nTest: Bleichenbacher's PKCS 1.5 Padding Oracle")
+
+    for _ in range(1):
+        plaintext = random_bytes(randint(31,31))
+        ciphertext = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
+                                                  b2h(plaintext)]).strip().decode())
+
+        msgs_recovered = bleichenbacher_pkcs15(pkcs15_padding_oracle, key.publickey(), ciphertext)
+        assert msgs_recovered[0] == b2i(plaintext)
+        key.texts = []
 
 
 def run():
@@ -289,7 +303,9 @@ def run():
     # test_wiener()
     # test_parity()
     # test_bleichenbacher_signature_forgery()
-    test_dsks()
+    # test_dsks()
+    test_bleichenbacher_pkcs15()
+
 
 if __name__ == "__main__":
     run()

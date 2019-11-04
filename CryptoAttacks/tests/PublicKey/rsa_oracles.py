@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import hashlib
 import sys
-from builtins import bytes
+from builtins import bytes, pow
 from os.path import abspath, dirname
 from os.path import join as join_path
 
@@ -20,6 +20,7 @@ hash_asn1 = {
     'sha384': bytes(b'\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30'),
     'sha512': bytes(b'\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x03\x05\x00\x04\x40')
 }
+
 
 def encrypt(plaintext, key):
     plaintext = b2i(plaintext)
@@ -58,6 +59,18 @@ def parity_oracle(ciphertext):
     return 0
 
 
+def pkcs15_padding_oracle(ciphertext):
+    key = RSAKey.import_key(join_path(current_path, 'private_key_256.pem'))
+    ciphertext = b2i(ciphertext)
+    message = pow(ciphertext, key.d, key.n)
+    x = (message >> (key.size - 16))
+    # if x >> 8 == 0:
+    #     print(x)
+    if message >> (key.size - 16) == 0x0002:
+        return True
+    return False
+
+
 def verify_bleichenbacher_suffix(message, signature, key, hash_function='sha1'):
     """00 01 00 ASN1 HASH garbage"""
     hash_msg = getattr(hashlib, hash_function)(message).digest()
@@ -92,7 +105,8 @@ def verify_bleichenbacher_middle(message, signature, key, hash_function='sha1'):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 4 or sys.argv[1] not in ['encrypt', 'decrypt', 'sign', 'verify', 'parity', 'verify_bleichenbacher_middle', 'verify_bleichenbacher_suffix']:
+    if len(sys.argv) < 4 or sys.argv[1] not in ['encrypt', 'decrypt', 'sign', 'verify', 'parity',
+                                                'verify_bleichenbacher_middle', 'verify_bleichenbacher_suffix']:
         print("Usage: {} encrypt|decrypt|sign|verify|parity|verify_bleichenbacher_suffix|verify_bleichenbacher_middle " \
               "key hexdata [more hexdata]".format(sys.argv[0]))
         sys.exit(1)
