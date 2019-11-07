@@ -815,15 +815,54 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
     def floor(a, b):
         return a // b
 
+    def insert_interval(M, lb, ub):
+        # if ub < M[0][0]:
+        #     # first interval
+        #     M.insert(0, (lb, ub))
+        # elif lb > M[-1][1]:
+        #     # last interval
+        #     M.append((lb, ub))
+        # else:
+        # find where to put new interval by lb
+        lo, hi = 0, len(M)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if M[mid][0] < lb:
+                lo = mid + 1
+            else:
+                hi = mid
+        # insert it
+        M.insert(lo, (lb, ub))
+
+        # lb inside previous interval
+        if lo > 0 and M[lo-1][1] >= lb:
+            lb = min(lb, M[lo-1][0])
+            M[lo] = (lb, M[lo][1])
+            del M[lo-1]
+            lo -= 1
+
+        # remove covered intervals
+        i = lo + 1
+        to_remove_first = i
+        to_remove_last = lo
+        while i < len(M) and M[i][0] <= ub:
+            to_remove_last += 1
+            i += 1
+        if to_remove_last > lo:
+            new_ub = max(ub, M[to_remove_last][1])
+            M[lo] = (M[lo][0], new_ub)
+            del M[to_remove_first:to_remove_last+1]
+
     def update_intervals(M, B, s, n):
         # step 3
         M2 = []
         for a, b in M:
-            for r in range(ceil(a * s - 3 * B + 1, n), ceil(b * s - 2 * B, n) + 1):
+            for r in range(ceil(a * s - 3 * B + 1, n), ceil(b * s - 2 * B, n)):
                 lb = max(a, ceil(2 * B + r * n, s))
                 ub = min(b, floor(3 * B - 1 + r * n, s))
-                M2.append((lb, ub))
-        M.clear()
+                assert lb <= ub, '{} {} {} {}'.format(a,b,lb,ub)
+                insert_interval(M2, lb, ub)
+        del M[:]
         return M2
 
     recovered = {}
@@ -832,21 +871,22 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
 
         n = key.n
         e = key.e
-        B = pow(2, key.size - 2)
+        B = pow(2, key.size - 16)
 
         # blind it
         log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
         s0 = 1
         cipher0 = cipher
         while not pkcs15_padding_oracle(cipher0):
-            s0 += 1
+            s0 += random.randint(2, n-1)
             cipher0 = (cipher * pow(s0, e, n)) % n
         M0 = [(2 * B, 3 * B - 1)]
         i = 1
         log.debug('Found s0: {}'.format(hex(s0)))
+        print(M0)
 
         # step 2.a
-        s1 = ceil(n, (3 * B))  # or ceil?
+        s1 = ceil(n, (3 * B))
         cipher1 = (cipher0 * pow(s1, e, n)) % n
         while not pkcs15_padding_oracle(cipher1):
             s1 += 1
@@ -855,10 +895,12 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         Mi = update_intervals(M0, B, s1, n)
         si = s1
         i += 1
+        print(Mi)
 
         interval_narrowed = False
         while not interval_narrowed:
             log.debug('len(Mi): {}'.format(len(Mi)))
+            print(Mi[:3])
             # print(Mi)
             if len(Mi) == 0:
                 log.error("Something wrong, len(Mi) == 0")
