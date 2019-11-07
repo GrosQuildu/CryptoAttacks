@@ -12,6 +12,13 @@ from CryptoAttacks.PublicKey.rsa import RSAKey
 from CryptoAttacks.Utils import b2h, b2i, h2b, i2b
 
 current_path = dirname(abspath(__file__))
+key_64 = RSAKey.import_key(join_path(current_path, 'private_key_64.pem'))
+key_256 = RSAKey.import_key(join_path(current_path, 'private_key_256.pem'))
+key_1024 = RSAKey.import_key(join_path(current_path, 'private_key_1024.pem'))
+key_1024_small_e = RSAKey.import_key(join_path(current_path, 'private_key_1024_small_e.pem'))
+key_2048 = RSAKey.import_key(join_path(current_path, 'private_key_2048.pem'))
+
+current_path = dirname(abspath(__file__))
 
 hash_asn1 = {
     'md5': bytes(b'\x30\x20\x30\x0c\x06\x08\x2a\x86\x48\x86\xf7\x0d\x02\x05\x05\x00\x04\x10'),
@@ -51,7 +58,7 @@ def verify(message, signature, key):
 
 
 def parity_oracle(ciphertext):
-    key = RSAKey.import_key(join_path(current_path, 'private_key_1024.pem'))
+    key = key_1024
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)
     if message & 1 == 1:
@@ -60,7 +67,7 @@ def parity_oracle(ciphertext):
 
 
 def pkcs15_padding_oracle(ciphertext):
-    key = RSAKey.import_key(join_path(current_path, 'private_key_256.pem'))
+    key = key_64
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)
     x = (message >> (key.size - 16))
