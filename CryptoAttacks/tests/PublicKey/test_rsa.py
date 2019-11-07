@@ -282,13 +282,20 @@ def test_dsks():
 def test_bleichenbacher_pkcs15():
     print("\nTest: Bleichenbacher's PKCS 1.5 Padding Oracle")
 
-    keys = [key_64, key_256]
+    keys = [key_64, key_256, key_1024]
     for key in keys:
-        plaintext = randint(2, key.n)
+        if key.size > 512:
+            plaintext = randint(2, key.n) >> 16
+            plaintext |= 0x0002 << (key.size - 16)
+        else:
+            plaintext = randint(2, key.n)
         ciphertext = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
                                                   i2h(plaintext)]).strip().decode())
-
-        msgs_recovered = bleichenbacher_pkcs15(pkcs15_padding_oracle, key.publickey(), ciphertext, oracle_key=key)
+        incremental_blinding = False
+        if key.size < 512:
+            incremental_blinding = True
+        msgs_recovered = bleichenbacher_pkcs15(pkcs15_padding_oracle, key.publickey(), ciphertext,
+                                               incremental_blinding=incremental_blinding, oracle_key=key)
         assert msgs_recovered[0] == plaintext
         key.clear_texts()
 
