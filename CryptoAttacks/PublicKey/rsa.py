@@ -835,10 +835,10 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         M.insert(lo, (lb, ub))
 
         # lb inside previous interval
-        if lo > 0 and M[lo-1][1] >= lb:
-            lb = min(lb, M[lo-1][0])
+        if lo > 0 and M[lo - 1][1] >= lb:
+            lb = min(lb, M[lo - 1][0])
             M[lo] = (lb, M[lo][1])
-            del M[lo-1]
+            del M[lo - 1]
             lo -= 1
 
         # remove covered intervals
@@ -851,16 +851,17 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         if to_remove_last > lo:
             new_ub = max(ub, M[to_remove_last][1])
             M[lo] = (M[lo][0], new_ub)
-            del M[to_remove_first:to_remove_last+1]
+            del M[to_remove_first:to_remove_last + 1]
 
     def update_intervals(M, B, s, n):
         # step 3
         M2 = []
         for a, b in M:
-            for r in range(ceil(a * s - 3 * B + 1, n), ceil(b * s - 2 * B, n)):
+            r_min = ceil(a * s - 3 * B + 1, n)
+            r_max = floor(b * s - 2 * B, n)
+            for r in range(r_min, r_max+1):
                 lb = max(a, ceil(2 * B + r * n, s))
                 ub = min(b, floor(3 * B - 1 + r * n, s))
-                assert lb <= ub, '{} {} {} {}'.format(a,b,lb,ub)
                 insert_interval(M2, lb, ub)
         del M[:]
         return M2
@@ -878,7 +879,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         s0 = 1
         cipher0 = cipher
         while not pkcs15_padding_oracle(cipher0):
-            s0 += random.randint(2, n-1)
+            s0 += random.randint(2, n - 1)
             cipher0 = (cipher * pow(s0, e, n)) % n
         M0 = [(2 * B, 3 * B - 1)]
         i = 1
