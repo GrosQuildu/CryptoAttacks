@@ -31,7 +31,7 @@ class RSAKey(object):
                 in signing context, cipher == sign(plain) 
             identifier(string/None): unique identifier of key
 
-            self.size(int): bit size
+            self.size(int): bit size rounded to 8 bits
         """
         if texts is None:
             texts = []
@@ -790,16 +790,20 @@ def pkcs15_padding_oracle(ciphertext, **kwargs):
     raise NotImplementedError
 
 
-def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
+def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, incremental_blinding=False, **kwargs):
     """Given oracle that checks if ciphertext decrypts to some valid plaintext with PKCS1.5 padding
     we can decrypt whole ciphertext
     pkcs15_padding_oracle function must be implemented
 
     http://archiv.infsec.ethz.ch/education/fs08/secsem/bleichenbacher98.pdf
 
+    Note that this attack is very slow. Approximate number of main loop iterations == key's bit length
+
     Args:
         pkcs15_padding_oracle(callable)
         key(RSAKey): contains ciphertexts to decrypt
+        incremental_blinding(bool): if ciphertext is not pkcs confirming we need to blind it.
+                                    this may be done using random or incremental values
 
     Returns:
         dict: decrypted ciphertexts
@@ -817,14 +821,6 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs)
         return a // b
 
     def insert_interval(M, lb, ub):
-        # if ub < M[0][0]:
-        #     # first interval
-        #     M.insert(0, (lb, ub))
-        # elif lb > M[-1][1]:
-        #     # last interval
-        #     M.append((lb, ub))
-        # else:
-        # find where to put new interval by lb
         lo, hi = 0, len(M)
         while lo < hi:
             mid = (lo + hi) // 2
@@ -860,7 +856,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs)
         for a, b in M:
             r_min = ceil(a * s - 3 * B + 1, n)
             r_max = floor(b * s - 2 * B, n)
-            for r in range(r_min, r_max+1):
+            for r in range(r_min, r_max + 1):
                 lb = max(a, ceil(2 * B + r * n, s))
                 ub = min(b, floor(3 * B - 1 + r * n, s))
                 insert_interval(M2, lb, ub)
@@ -884,13 +880,17 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs)
         e = key.e
         B = pow(2, key.size - 16)
 
-        # blind it
+        # step 1
         log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
         i = 0
         si = 1
         cipher_blinded = cipher
         while not pkcs15_padding_oracle(cipher_blinded, **kwargs):
-            si += random.randint(2, n - 1)
+            # the paper says to draw it, but seems like incrementation sometimes run faster
+            if incremental_blinding:
+                si += 1
+            else:
+                si = random.randint(2, 1 << (key.size - 16))
             cipher_blinded = (cipher * pow(si, e, n)) % n
         Mi = [(2 * B, 3 * B - 1)]
         s0 = si
@@ -899,7 +899,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs)
 
         plaintext = None
         while plaintext is None:
-            log.debug('len(M{}): {}'.format(i-1, len(Mi)))
+            log.debug('len(M{}): {}'.format(i - 1, len(Mi)))
 
             if i == 1:
                 # step 2.a
@@ -908,7 +908,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs)
 
             elif len(Mi) > 1:
                 # step 2.b
-                si = find_si(si_start=si+1)
+                si = find_si(si_start=si + 1)
 
             elif len(Mi) == 1 and Mi[0][0] != Mi[0][1]:
                 # step 2.c
