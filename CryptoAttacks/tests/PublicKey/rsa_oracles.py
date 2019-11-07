@@ -67,6 +67,7 @@ def parity_oracle(ciphertext):
 
 
 def pkcs15_padding_oracle(ciphertext, **kwargs):
+    kwargs['pkcs15_padding_oracle_calls'][0] += 1
     key = kwargs['oracle_key']
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)

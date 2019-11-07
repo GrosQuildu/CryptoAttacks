@@ -796,6 +796,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
     pkcs15_padding_oracle function must be implemented
 
     http://archiv.infsec.ethz.ch/education/fs08/secsem/bleichenbacher98.pdf
+    https://www.dsi.unive.it/~focardi/RSA-padding-oracle/#eq5
 
     Note that this attack is very slow. Approximate number of main loop iterations == key's bit length
 
@@ -809,10 +810,10 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
         dict: decrypted ciphertexts
         update key texts
     """
-    try:
-        pkcs15_padding_oracle(1, **kwargs)
-    except NotImplementedError:
-        log.critical_error("PKCS1.5 padding oracle not implemented")
+    # try:
+    #     pkcs15_padding_oracle(1, **kwargs)
+    # except NotImplementedError:
+    #     log.critical_error("PKCS1.5 padding oracle not implemented")
 
     def ceil(a, b):
         return a // b + (a % b > 0)

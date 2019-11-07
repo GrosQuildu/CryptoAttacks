@@ -284,6 +284,11 @@ def test_bleichenbacher_pkcs15():
 
     keys = [key_64, key_256, key_1024]
     for key in keys:
+        pkcs15_padding_oracle_calls = [0]  # must be mutable
+        incremental_blinding = False
+        if key.size < 512:
+            incremental_blinding = True
+
         if key.size > 512:
             plaintext = randint(2, key.n) >> 16
             plaintext |= 0x0002 << (key.size - 16)
@@ -291,17 +296,17 @@ def test_bleichenbacher_pkcs15():
             plaintext = randint(2, key.n)
         ciphertext = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
                                                   i2h(plaintext)]).strip().decode())
-        incremental_blinding = False
-        if key.size < 512:
-            incremental_blinding = True
+
         msgs_recovered = bleichenbacher_pkcs15(pkcs15_padding_oracle, key.publickey(), ciphertext,
-                                               incremental_blinding=incremental_blinding, oracle_key=key)
+                                               incremental_blinding=incremental_blinding, oracle_key=key,
+                                               pkcs15_padding_oracle_calls=pkcs15_padding_oracle_calls)
+        print('for keysize {}: pkcs15_padding_oracle_calls = {}'.format(key.size, pkcs15_padding_oracle_calls[0]))
         assert msgs_recovered[0] == plaintext
         key.clear_texts()
 
 
 def run():
-    log.level = 'debug'
+    log.level = 'info'
 
     # test_RSAKey()
     # test_blinding()
