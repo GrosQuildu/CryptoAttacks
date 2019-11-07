@@ -876,36 +876,29 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
 
         # blind it
         log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
-        s0 = 1
+        i = 0
+        si = 1
         cipher0 = cipher
         while not pkcs15_padding_oracle(cipher0):
-            s0 += random.randint(2, n - 1)
-            cipher0 = (cipher * pow(s0, e, n)) % n
-        M0 = [(2 * B, 3 * B - 1)]
+            si += random.randint(2, n - 1)
+            cipher0 = (cipher * pow(si, e, n)) % n
+        Mi = [(2 * B, 3 * B - 1)]
+        s0 = si
+        log.debug('Found s{}: {}'.format(i, hex(si)))
         i = 1
-        log.debug('Found s0: {}'.format(hex(s0)))
-        print(M0)
 
-        # step 2.a
-        s1 = ceil(n, (3 * B))
-        cipher1 = (cipher0 * pow(s1, e, n)) % n
-        while not pkcs15_padding_oracle(cipher1):
-            s1 += 1
-            cipher1 = (cipher0 * pow(s1, e, n)) % n
-        log.debug('Found s1: {}'.format(hex(s1)))
-        Mi = update_intervals(M0, B, s1, n)
-        si = s1
-        i += 1
-        print(Mi)
+        plaintext = None
+        while plaintext is None:
+            log.debug('len(M{}): {}'.format(i-1, len(Mi)))
 
-        interval_narrowed = False
-        while not interval_narrowed:
-            log.debug('len(Mi): {}'.format(len(Mi)))
-            print(Mi[:3])
-            # print(Mi)
-            if len(Mi) == 0:
-                log.error("Something wrong, len(Mi) == 0")
-                return None
+            if i == 1:
+                # step 2.a
+                si = ceil(n, (3 * B))
+                cipher1 = (cipher0 * pow(si, e, n)) % n
+                while not pkcs15_padding_oracle(cipher1):
+                    si += 1
+                    cipher1 = (cipher0 * pow(si, e, n)) % n
+                log.debug('Found s{}: {}'.format(i, hex(si)))
 
             elif len(Mi) > 1:
                 # step 2.b
@@ -915,29 +908,40 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
                     si += 1
                     cipheri = (cipher0 * pow(si, e, n)) % n
 
-            else:
+            elif len(Mi) == 1 and Mi[0][0] != Mi[0][1]:
                 # step 2.c
                 a, b = Mi[0]
+                si_found = False
+                si_prev = si
+                ri = ceil(2 * (b * si_prev - 2 * B), n)
+                while not si_found:
+                    si_min = ceil(2 * B + ri * n, b)
+                    si_max = ceil(3 * B + ri * n, a)
+                    for si in range(si_min, si_max):
+                        cipheri = (cipher0 * pow(si, e, n)) % n
+                        if pkcs15_padding_oracle(cipheri):
+                            si_found = True
+                            break
+                    ri += 1
 
-                if a != b:
-                    si_found = False
-                    while not si_found:
-                        ri = ceil(2 * (b * si - 2 * B), n)
-                        for si in range(ceil(2 * B + ri * n, b), ceil(3 * B + ri * n, a) + 1):
-                            cipheri = (cipher0 * pow(si, e, n)) % n
-                            if pkcs15_padding_oracle(cipheri):
-                                si_found = True
-                                break
+            else:
+                log.error("Hm, something strange happed. Len(M{}) = {}".format(i, len(Mi)))
+                return None
 
-                else:
-                    # step 4
-                    log.success("Interval narrowed to one value")
-                    log.debug("plaintext = {}".format(hex(a)))
-                    interval_narrowed = True
-
+            # step 3
             Mi = update_intervals(Mi, B, si, n)
 
-        recovered[text_no] = Mi[0][0]
-        key.texts[text_no]['plain'] = recovered[ciphertext]
+            # step 4
+            if len(Mi) == 1 and Mi[0][0] == Mi[0][1]:
+                plaintext = Mi[0][0]
+                if s0 != 1:
+                    plaintext = (plaintext * invmod(s0, n)) % n
+                log.success("Interval narrowed to one value")
+                log.debug("plaintext = {}".format(hex(plaintext)))
+            else:
+                i += 1
+
+        recovered[text_no] = plaintext
+        key.texts[text_no]['plain'] = recovered[text_no]
 
     return recovered
