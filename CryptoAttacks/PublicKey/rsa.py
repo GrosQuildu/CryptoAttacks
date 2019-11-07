@@ -777,11 +777,12 @@ def dsks(message, signature, n, smooth_bit_size=30, hash_function=None):
             print('nope', float(n_p) / float(n))
 
 
-def pkcs15_padding_oracle(ciphertext):
+def pkcs15_padding_oracle(ciphertext, **kwargs):
     """Function implementing PKCS 1.5 Padding Oracle
 
     Args:
         ciphertext(int)
+        **kwargs: whatever was passed to bleichenbacher_pkcs15 as **kwargs
 
     Returns:
         bool: True if decrypted ciphertext has correct padding (starts with 0x0002 at least), False otherwise
@@ -789,7 +790,7 @@ def pkcs15_padding_oracle(ciphertext):
     raise NotImplementedError
 
 
-def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
+def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
     """Given oracle that checks if ciphertext decrypts to some valid plaintext with PKCS1.5 padding
     we can decrypt whole ciphertext
     pkcs15_padding_oracle function must be implemented
@@ -805,7 +806,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         update key texts
     """
     try:
-        pkcs15_padding_oracle(1)
+        pkcs15_padding_oracle(1, **kwargs)
     except NotImplementedError:
         log.critical_error("PKCS1.5 padding oracle not implemented")
 
@@ -870,7 +871,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         si_new = si_start
         while si_max is None or si_new < si_max:
             cipheri = (cipher_blinded * pow(si_new, e, n)) % n
-            if pkcs15_padding_oracle(cipheri):
+            if pkcs15_padding_oracle(cipheri, **kwargs):
                 return si_new
             si_new += 1
         return None
@@ -888,7 +889,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         i = 0
         si = 1
         cipher_blinded = cipher
-        while not pkcs15_padding_oracle(cipher_blinded):
+        while not pkcs15_padding_oracle(cipher_blinded, **kwargs):
             si += random.randint(2, n - 1)
             cipher_blinded = (cipher * pow(si, e, n)) % n
         Mi = [(2 * B, 3 * B - 1)]

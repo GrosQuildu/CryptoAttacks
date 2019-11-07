@@ -66,13 +66,10 @@ def parity_oracle(ciphertext):
     return 0
 
 
-def pkcs15_padding_oracle(ciphertext):
-    key = key_64
+def pkcs15_padding_oracle(ciphertext, **kwargs):
+    key = kwargs['oracle_key']
     ciphertext = b2i(ciphertext)
     message = pow(ciphertext, key.d, key.n)
-    x = (message >> (key.size - 16))
-    # if x >> 8 == 0:
-    #     print(x)
     if message >> (key.size - 16) == 0x0002:
         return True
     return False
