@@ -937,7 +937,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
                 if s0 != 1:
                     plaintext = (plaintext * invmod(s0, n)) % n
                 log.success("Interval narrowed to one value")
-                log.debug("plaintext = {}".format(hex(plaintext)))
+                log.success("plaintext = {}".format(hex(plaintext)))
             else:
                 i += 1
 
