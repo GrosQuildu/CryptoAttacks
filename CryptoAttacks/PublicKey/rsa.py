@@ -866,6 +866,15 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         del M[:]
         return M2
 
+    def find_si(si_start, si_max=None):
+        si_new = si_start
+        while si_max is None or si_new < si_max:
+            cipheri = (cipher_blinded * pow(si_new, e, n)) % n
+            if pkcs15_padding_oracle(cipheri):
+                return si_new
+            si_new += 1
+        return None
+
     recovered = {}
     for text_no, cipher in _prepare_ciphertexts(key=key, ciphertext=ciphertext):
         log.info("Decrypting {}".format(cipher))
@@ -878,10 +887,10 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
         log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
         i = 0
         si = 1
-        cipher0 = cipher
-        while not pkcs15_padding_oracle(cipher0):
+        cipher_blinded = cipher
+        while not pkcs15_padding_oracle(cipher_blinded):
             si += random.randint(2, n - 1)
-            cipher0 = (cipher * pow(si, e, n)) % n
+            cipher_blinded = (cipher * pow(si, e, n)) % n
         Mi = [(2 * B, 3 * B - 1)]
         s0 = si
         log.debug('Found s{}: {}'.format(i, hex(si)))
@@ -893,39 +902,26 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None):
 
             if i == 1:
                 # step 2.a
-                si = ceil(n, (3 * B))
-                cipher1 = (cipher0 * pow(si, e, n)) % n
-                while not pkcs15_padding_oracle(cipher1):
-                    si += 1
-                    cipher1 = (cipher0 * pow(si, e, n)) % n
+                si = find_si(si_start=ceil(n, (3 * B)))
                 log.debug('Found s{}: {}'.format(i, hex(si)))
 
             elif len(Mi) > 1:
                 # step 2.b
-                si = si + 1
-                cipheri = (cipher0 * pow(si, e, n)) % n
-                while not pkcs15_padding_oracle(cipheri):
-                    si += 1
-                    cipheri = (cipher0 * pow(si, e, n)) % n
+                si = find_si(si_start=si+1)
 
             elif len(Mi) == 1 and Mi[0][0] != Mi[0][1]:
                 # step 2.c
                 a, b = Mi[0]
-                si_found = False
-                si_prev = si
-                ri = ceil(2 * (b * si_prev - 2 * B), n)
-                while not si_found:
+                ri = ceil(2 * (b * si - 2 * B), n)
+                si = None
+                while si is None:
                     si_min = ceil(2 * B + ri * n, b)
                     si_max = ceil(3 * B + ri * n, a)
-                    for si in range(si_min, si_max):
-                        cipheri = (cipher0 * pow(si, e, n)) % n
-                        if pkcs15_padding_oracle(cipheri):
-                            si_found = True
-                            break
+                    si = find_si(si_start=si_min, si_max=si_max)
                     ri += 1
 
             else:
-                log.error("Hm, something strange happed. Len(M{}) = {}".format(i, len(Mi)))
+                log.error("Hm, something strange happend. Len(M{}) = {}".format(i, len(Mi)))
                 return None
 
             # step 3
