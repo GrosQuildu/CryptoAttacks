@@ -86,7 +86,7 @@ class RSAKey(object):
             except:
                 log.critical_error(
                     "Ciphertext to decrypt must be number or be convertible to number ({})".format(ciphertext))
-        return self.pyrsa_key.decrypt(int(ciphertext))
+        return self.pyrsa_key.decrypt(gmpy2.mpz(ciphertext))
 
     def copy(self, identifier=''):
         if self.has_private():
