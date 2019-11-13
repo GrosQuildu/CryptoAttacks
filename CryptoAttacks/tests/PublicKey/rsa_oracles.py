@@ -73,7 +73,17 @@ def pkcs15_padding_oracle(ciphertext, **kwargs):
     message = pow(ciphertext, key.d, key.n)
     if message >> (key.size - 16) == 0x0002:
         return True
-    return False
+    return 
+
+
+def oaep_padding_oracle(ciphertext, **kwargs):
+    kwargs['manger_padding_oracle_calls'][0] += 1
+    key = kwargs['oracle_key']
+    ciphertext = b2i(ciphertext)
+    message = pow(ciphertext, key.d, key.n)
+    if message >> (key.size - 8) == 0x00:
+        return True
+    return
 
 
 def verify_bleichenbacher_suffix(message, signature, key, hash_function='sha1'):

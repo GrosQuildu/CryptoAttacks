@@ -14,8 +14,8 @@ from CryptoAttacks.PublicKey.rsa import (RSAKey,
                                          bleichenbacher_signature_forgery,
                                          blinding, common_primes, faulty,
                                          hastad, parity, parity_oracle,
-                                         small_e_msg, wiener, dsks, bleichenbacher_pkcs15)
-from CryptoAttacks.tests.PublicKey.rsa_oracles import (parity_oracle, pkcs15_padding_oracle,
+                                         small_e_msg, wiener, dsks, bleichenbacher_pkcs15, manger)
+from CryptoAttacks.tests.PublicKey.rsa_oracles import (parity_oracle, pkcs15_padding_oracle, oaep_padding_oracle,
                                                        key_64, key_256, key_1024, key_1024_small_e,
                                                        key_2048)
 from CryptoAttacks.Utils import (b2h, b2i, h2b, h2i, i2h, b2i, i2b, log, random_bytes,
@@ -300,7 +300,23 @@ def test_bleichenbacher_pkcs15():
         msgs_recovered = bleichenbacher_pkcs15(pkcs15_padding_oracle, key.publickey(), ciphertext,
                                                incremental_blinding=incremental_blinding, oracle_key=key,
                                                pkcs15_padding_oracle_calls=pkcs15_padding_oracle_calls)
-        print('for keysize {}: pkcs15_padding_oracle_calls = {}'.format(key.size, pkcs15_padding_oracle_calls[0]))
+        log.info('For keysize {}: pkcs15_padding_oracle_calls = {}'.format(key.size, pkcs15_padding_oracle_calls[0]))
+        assert msgs_recovered[0] == plaintext
+        key.clear_texts()
+
+
+def test_manger():
+    keys = [key_64, key_256, key_1024, key_2048]
+    for key in keys:
+        manger_padding_oracle_calls = [0]
+        plaintext = randint(2, key.n) >> 8
+
+        ciphertext = h2b(subprocess.check_output(["python", rsa_oracles_path, "encrypt", key.identifier,
+                                                  i2h(plaintext)]).strip().decode())
+
+        msgs_recovered = manger(oaep_padding_oracle, key.publickey(), ciphertext, oracle_key=key,
+                                manger_padding_oracle_calls=manger_padding_oracle_calls)
+        log.info('For keysize {}: oaep_padding_oracle_calls = {}'.format(key.size, manger_padding_oracle_calls[0]))
         assert msgs_recovered[0] == plaintext
         key.clear_texts()
 
@@ -318,7 +334,8 @@ def run():
     # test_parity()
     # test_bleichenbacher_signature_forgery()
     # test_dsks()
-    test_bleichenbacher_pkcs15()
+    # test_bleichenbacher_pkcs15()
+    test_manger()
 
 
 if __name__ == "__main__":

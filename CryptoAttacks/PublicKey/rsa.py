@@ -506,10 +506,6 @@ def parity(parity_oracle, key, min_lower_bound=None, max_upper_bound=None):
         dict: decrypted ciphertexts
         update key texts
     """
-    try:
-        parity_oracle(1)
-    except NotImplementedError:
-        log.critical_error("Parity oracle not implemented")
 
     recovered = {}
     for text_no in range(len(key.texts)):
@@ -810,10 +806,6 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
         dict: decrypted ciphertexts
         update key texts
     """
-    # try:
-    #     pkcs15_padding_oracle(1, **kwargs)
-    # except NotImplementedError:
-    #     log.critical_error("PKCS1.5 padding oracle not implemented")
 
     def ceil(a, b):
         return a // b + (a % b > 0)
@@ -939,6 +931,108 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
             else:
                 i += 1
 
+        recovered[text_no] = plaintext
+        key.texts[text_no]['plain'] = recovered[text_no]
+
+    return recovered
+
+
+def oaep_padding_oracle(ciphertext, **kwargs):
+    """Function implementing OAEP Padding Oracle
+
+    Args:
+        ciphertext(int)
+        **kwargs: whatever was passed to manger as **kwargs
+
+    Returns:
+        bool: True if decrypted ciphertext has correct padding (starts with 0x00), False otherwise
+              in other words: True if plaintext < B, false if plaintext >= B, where B = 2**(key.bitsize-8)
+    """
+    raise NotImplementedError
+
+
+def manger(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
+    """Given oracle that checks if ciphertext decrypts to some valid plaintext with OAEP padding
+    we can decrypt whole ciphertext
+    oaep_padding_oracle function must be implemented
+
+    https://iacr.org/archive/crypto2001/21390229.pdf
+
+    Args:
+        oaep_padding_oracle(callable)
+        key(RSAKey): contains ciphertexts to decrypt
+
+    Returns:
+        dict: decrypted ciphertexts
+        update key texts
+    """
+
+    def ceil(a, b):
+        return a // b + (a % b > 0)
+
+    def floor(a, b):
+        return a // b
+
+    recovered = {}
+    for text_no, cipher in _prepare_ciphertexts(key=key, ciphertext=ciphertext):
+        log.info("Decrypting {}".format(cipher))
+
+        n = key.n
+        e = key.e
+        B = pow(2, key.size - 8)
+        priv_key = kwargs['oracle_key']
+
+        # step 1
+        log.debug('step 1')
+        f1 = 2
+        cipheri = (cipher * pow(f1, e, n)) % n
+        while pkcs15_padding_oracle(cipheri, **kwargs):
+            f1 *= 2
+            cipheri = (cipher * pow(f1, e, n)) % n
+
+        m = priv_key.decrypt(cipheri)
+        # print('m = {:0128x}'.format(m)
+        assert B <= m < 2 * B
+        log.debug('step 1 done')
+        log.debug('Found f1: {}'.format(hex(f1)))
+
+        # step 2
+        log.debug('step 2')
+        f1_half = f1 // 2
+        f2 = int(floor(n + B, B)) * f1_half
+        cipheri = (cipher * pow(f2, e, n)) % n
+        while not pkcs15_padding_oracle(cipheri, **kwargs):
+            f2 += f1_half
+            cipheri = (cipher * pow(f2, e, n)) % n
+
+        m = priv_key.decrypt(cipheri)
+        # print('m = {:0256x}\nf = {}'.format(m, f2))
+        # assert n <= m < n + B
+
+        log.debug('step 2 done')
+        log.debug('Found f2: {}'.format(hex(f2)))
+
+        # step 3
+        log.debug('step 3')
+        m_min, m_max = ceil(n, f2), floor(n + B, f2)
+        while m_min < m_max:
+            log.debug(hex(m_max - m_min))
+            f_tmp = floor(2 * B, m_max - m_min)
+            i = floor(f_tmp * m_min, n)
+            f3 = ceil(i * n, m_min)
+
+            cipheri = (cipher * pow(f3, e, n)) % n
+            if pkcs15_padding_oracle(cipheri, **kwargs):
+                m_max = floor(i * n + B, f3)
+            else:
+                m_min = ceil(i * n + B, f3)
+
+        log.debug('step 3 done')
+        log.debug('m_min = {}'.format(hex(m_min)))
+        log.debug('m_max = {}'.format(hex(m_max)))
+        plaintext = m_min
+
+        log.success("plaintext = {}".format(hex(plaintext)))
         recovered[text_no] = plaintext
         key.texts[text_no]['plain'] = recovered[text_no]
 
