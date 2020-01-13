@@ -5,10 +5,10 @@ from subprocess import call
 from setuptools import find_packages, setup
 
 
-class build_py(_build_py):
-    """Preparse and rename to .py all sage files to make them importable"""
-    print("Preparsing sage files")
-    call(['bash', './preparse_sage.bash'])
+# class build_py(_build_py):
+#     """Preparse and rename to .py all sage files to make them importable"""
+#     print("Preparsing sage files")
+#     call(['bash', './preparse_sage.bash'])
 
 setup(name='CryptoAttacks',
         version='0.1',
