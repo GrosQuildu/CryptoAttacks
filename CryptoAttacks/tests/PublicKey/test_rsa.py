@@ -316,7 +316,7 @@ def test_manger():
 
         msgs_recovered = manger(oaep_padding_oracle, key.publickey(), ciphertext, oracle_key=key,
                                 manger_padding_oracle_calls=manger_padding_oracle_calls)
-        log.info('For keysize {}: oaep_padding_oracle_calls = {}'.format(key.size, manger_padding_oracle_calls[0]))
+        log.success('For keysize {}: oaep_padding_oracle_calls = {}'.format(key.size, manger_padding_oracle_calls[0]))
         assert msgs_recovered[0] == plaintext
         key.clear_texts()
 
@@ -334,7 +334,7 @@ def run():
     # test_parity()
     # test_bleichenbacher_signature_forgery()
     # test_dsks()
-    # test_bleichenbacher_pkcs15()
+    test_bleichenbacher_pkcs15()
     test_manger()
 
 

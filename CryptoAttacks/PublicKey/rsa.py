@@ -874,7 +874,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
         B = pow(2, key.size - 16)
 
         # step 1
-        log.debug('Blinding the ciphertext (to make in PKCS1.5 confirming)')
+        log.debug('Blinding the ciphertext (to make it PKCS1.5 confirming)')
         i = 0
         si = 1
         cipher_blinded = cipher
@@ -951,7 +951,7 @@ def oaep_padding_oracle(ciphertext, **kwargs):
     raise NotImplementedError
 
 
-def manger(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
+def manger(oaep_padding_oracle, key, ciphertext=None, **kwargs):
     """Given oracle that checks if ciphertext decrypts to some valid plaintext with OAEP padding
     we can decrypt whole ciphertext
     oaep_padding_oracle function must be implemented
@@ -980,19 +980,15 @@ def manger(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
         n = key.n
         e = key.e
         B = pow(2, key.size - 8)
-        priv_key = kwargs['oracle_key']
 
         # step 1
         log.debug('step 1')
         f1 = 2
         cipheri = (cipher * pow(f1, e, n)) % n
-        while pkcs15_padding_oracle(cipheri, **kwargs):
+        while oaep_padding_oracle(cipheri, **kwargs):
             f1 *= 2
             cipheri = (cipher * pow(f1, e, n)) % n
 
-        m = priv_key.decrypt(cipheri)
-        # print('m = {:0128x}'.format(m)
-        assert B <= m < 2 * B
         log.debug('step 1 done')
         log.debug('Found f1: {}'.format(hex(f1)))
 
@@ -1001,13 +997,9 @@ def manger(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
         f1_half = f1 // 2
         f2 = int(floor(n + B, B)) * f1_half
         cipheri = (cipher * pow(f2, e, n)) % n
-        while not pkcs15_padding_oracle(cipheri, **kwargs):
+        while not oaep_padding_oracle(cipheri, **kwargs):
             f2 += f1_half
             cipheri = (cipher * pow(f2, e, n)) % n
-
-        m = priv_key.decrypt(cipheri)
-        # print('m = {:0256x}\nf = {}'.format(m, f2))
-        # assert n <= m < n + B
 
         log.debug('step 2 done')
         log.debug('Found f2: {}'.format(hex(f2)))
@@ -1022,7 +1014,7 @@ def manger(pkcs15_padding_oracle, key, ciphertext=None, **kwargs):
             f3 = ceil(i * n, m_min)
 
             cipheri = (cipher * pow(f3, e, n)) % n
-            if pkcs15_padding_oracle(cipheri, **kwargs):
+            if oaep_padding_oracle(cipheri, **kwargs):
                 m_max = floor(i * n + B, f3)
             else:
                 m_min = ceil(i * n + B, f3)
