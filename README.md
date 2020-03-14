@@ -48,6 +48,8 @@ python ./setup.py install
 		+ Blinding (signatures/ciphertexts)
 		+ Bleichenbacher'06 signature forgery
 		+ Duplicate-Signature Key Selection
+        + Bleichenbacher's PKCS1.5 oracle 
+        + Manger's OAEP oracle
 * Elliptic Curves
     + [ECDSA](CryptoAttacks/docs/EllipticCurve/ecdsa.md)
         + Biased nonce (LSB equals to zero)*
