@@ -268,8 +268,8 @@ def factors_from_d(n, e, d):
         g = random.randint(2, n - 2)
         b = k // (2 ** power_of_two(k))
         while b < k:
-            gb = pow(g, b, n)
-            if gb != 1 and gb != n - 1 and pow(gb, 2, n) == 1:
+            gb = gmpy2.powmod(g, b, n)
+            if gb != 1 and gb != n - 1 and gmpy2.powmod(gb, 2, n) == 1:
                 if gcd(gb - 1, n) != 1:
                     p = gcd(gb - 1, n)
                 else:
@@ -302,7 +302,7 @@ def small_e_msg(key, ciphertexts=None, max_times=100):
         times = 0
         for k in range(max_times):
             msg, is_correct = gmpy2.iroot(ciphertext + times, key.e)
-            if is_correct and pow(msg, key.e, key.n) == ciphertext:
+            if is_correct and gmpy2.powmod(msg, key.e, key.n) == ciphertext:
                 msg = int(msg)
                 log.success("Found msg: {}, times=={}".format(i2h(msg), times // key.n))
                 recovered.append(msg)
@@ -461,7 +461,7 @@ def faulty(key, padding=None):
             message = pair['plain']
             if padding:
                 message = padding(message)
-            p = gmpy2.gcd(pow(signature, key.e) - message, key.n)
+            p = gmpy2.gcd(gmpy2.pow(signature, key.e) - message, key.n)
             if p != 1 and p != key.n:
                 log.info("Found p={}".format(p))
                 new_key = RSAKey.construct(key.n, key.e, p=p, identifier=key.identifier + '-private')
@@ -666,10 +666,10 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
                 for round_error in range(-5, 5):
                     signature, _ = gmpy2.iroot(plaintext, key.e)
                     signature = int(signature + round_error)
-                    test_prefix = i2b(pow(signature, key.e, key.n), size=key.size)[:len(plaintext_prefix)]
+                    test_prefix = i2b(gmpy2.powmod(signature, key.e, key.n), size=key.size)[:len(plaintext_prefix)]
                     if test_prefix == plaintext_prefix:
                         log.info("Got signature: {}".format(signature))
-                        log.debug("signature**e % n == {}".format(i2h(pow(signature, key.e, key.n), size=key.size)))
+                        log.debug("signature**e % n == {}".format(i2h(gmpy2.powmod(signature, key.e, key.n), size=key.size)))
                         key.texts[text_no]['cipher'] = signature
                         signatures[text_no] = signature
                         break
@@ -702,7 +702,7 @@ def bleichenbacher_signature_forgery(key, garbage='suffix', hash_function='sha1'
                     signature_prefix = i2b(int(signature_prefix), size=key.size)[:-len(signature_suffix)]
 
                     signature = b2i(signature_prefix + signature_suffix)
-                    test_plaintext = i2b(pow(signature, key.e, key.n), size=key.size)
+                    test_plaintext = i2b(gmpy2.powmod(signature, key.e, key.n), size=key.size)
                     if bytes(b'\x00') not in test_plaintext[2:-len(plaintext_suffix)]:
                         if test_plaintext[:3] == plaintext_prefix[:3] and test_plaintext[
                                                                           -len(plaintext_suffix):] == plaintext_suffix:
@@ -859,7 +859,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
     def find_si(si_start, si_max=None):
         si_new = si_start
         while si_max is None or si_new < si_max:
-            cipheri = (cipher_blinded * pow(si_new, e, n)) % n
+            cipheri = (cipher_blinded * gmpy2.powmod(si_new, e, n)) % n
             if pkcs15_padding_oracle(cipheri, **kwargs):
                 return si_new
             si_new += 1
@@ -871,7 +871,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
 
         n = key.n
         e = key.e
-        B = pow(2, key.size - 16)
+        B = gmpy2.pow(2, key.size - 16)
 
         # step 1
         log.debug('Blinding the ciphertext (to make it PKCS1.5 confirming)')
@@ -884,7 +884,7 @@ def bleichenbacher_pkcs15(pkcs15_padding_oracle, key, ciphertext=None, increment
                 si += 1
             else:
                 si = random.randint(2, 1 << (key.size - 16))
-            cipher_blinded = (cipher * pow(si, e, n)) % n
+            cipher_blinded = (cipher * gmpy2.powmod(si, e, n)) % n
         Mi = [(2 * B, 3 * B - 1)]
         s0 = si
         log.debug('Found s{}: {}'.format(i, hex(si)))
@@ -984,10 +984,10 @@ def manger(oaep_padding_oracle, key, ciphertext=None, **kwargs):
         # step 1
         log.debug('step 1')
         f1 = 2
-        cipheri = (cipher * pow(f1, e, n)) % n
+        cipheri = (cipher * gmpy2.powmod(f1, e, n)) % n
         while oaep_padding_oracle(cipheri, **kwargs):
             f1 *= 2
-            cipheri = (cipher * pow(f1, e, n)) % n
+            cipheri = (cipher * gmpy2.powmod(f1, e, n)) % n
 
         log.debug('step 1 done')
         log.debug('Found f1: {}'.format(hex(f1)))
@@ -996,10 +996,10 @@ def manger(oaep_padding_oracle, key, ciphertext=None, **kwargs):
         log.debug('step 2')
         f1_half = f1 // 2
         f2 = int(floor(n + B, B)) * f1_half
-        cipheri = (cipher * pow(f2, e, n)) % n
+        cipheri = (cipher * gmpy2.powmod(f2, e, n)) % n
         while not oaep_padding_oracle(cipheri, **kwargs):
             f2 += f1_half
-            cipheri = (cipher * pow(f2, e, n)) % n
+            cipheri = (cipher * gmpy2.powmod(f2, e, n)) % n
 
         log.debug('step 2 done')
         log.debug('Found f2: {}'.format(hex(f2)))
@@ -1013,7 +1013,7 @@ def manger(oaep_padding_oracle, key, ciphertext=None, **kwargs):
             i = floor(f_tmp * m_min, n)
             f3 = ceil(i * n, m_min)
 
-            cipheri = (cipher * pow(f3, e, n)) % n
+            cipheri = (cipher * gmpy2.powmod(f3, e, n)) % n
             if oaep_padding_oracle(cipheri, **kwargs):
                 m_max = floor(i * n + B, f3)
             else:
