@@ -143,9 +143,7 @@ def gcd(*args):
 
     if len(args) == 2:
         a, b = args
-        while b:
-            a, b = b, a % b
-        return a
+        return gmpy2.gcd(a, b)
     else:
         d = 0
         for number in args:
@@ -162,7 +160,7 @@ def lcm(*args):
 
     if len(args) == 2:
         a, b = args
-        return (a*b) // gcd(a, b)
+        return gmpy2.lcm(a, b)
     else:
         l = 1
         for number in args:
@@ -184,12 +182,7 @@ def egcd(*args):
 
     if len(args) == 2:
         a, b = args
-        s0, t0, s1, t1 = 1, 0, 0, 1
-        while b:
-            q, a, b = a//b, b, a%b
-            s0, s1 = s1, s0 - q*s1
-            t0, t1 = t1, t0 - q*t1
-        return a, s0, t0
+        return gmpy2.gcdext(a, b)
     else:
         d, s, t = egcd(args[0], args[1])
         coefficients = [s, t]
@@ -204,15 +197,11 @@ def egcd(*args):
 
 def invmod(a, n):
     """Modular inverse. a*invmod(a) == 1 (mod n)"""
-    d, s, t = egcd(a, n)
-    if d != 1:
-        raise ValueError("Modular inverse doesn't exists ({}**(-1) % {})".format(a, n))
-    return s % n
-
+    return gmpy2.invert(a, n)
 
 def legendre(a, p):
     """Legendre symbol"""
-    tmp = pow(a, (p-1)//2, p)
+    tmp = gmpy2.powmod(a, (p-1)//2, p)
     return -1 if tmp == p-1 else tmp
 
 
@@ -228,26 +217,26 @@ def tonelli_shanks(n, p):
         q >>= 1
 
     if s == 1:
-        return pow(n, (p+1)//4, p)
+        return gmpy2.powmod(n, (p+1)//4, p)
 
     z = 1
     while legendre(z, p) != -1:
         z += 1
-    c = pow(z, q, p)
+    c = gmpy2.powmod(z, q, p)
 
-    r = pow(n, (q+1)//2, p)
-    t = pow(n, q, p)
+    r = gmpy2.powmod(n, (q+1)//2, p)
+    t = gmpy2.powmod(n, q, p)
     m = s
     while t != 1:
         i = 1
         while i < m:
-            if pow(t, 2**i, p) == 1:
+            if gmpy2.powmod(t, 2**i, p) == 1:
                 break
             i += 1
-        b = pow(c, 2**(m-i-1), p)
+        b = gmpy2.powmod(c, 2**(m-i-1), p)
         r = (r*b) % p
         t = (t * (b**2)) % p
-        c = pow(b, 2, p)
+        c = gmpy2.powmod(b, 2, p)
         m = i
     return r
 
@@ -269,8 +258,8 @@ def find_generator(p, factors):
             a = randint(3, p-1)
             if gcd(a, p-1) != 1:
                 continue
-            b = pow(a, (p-1)//one_factor, p)
-        y = pow(a, (p-1)//(one_factor**factors[one_factor]), p)
+            b = gmpy2.powmod(a, (p-1)//one_factor, p)
+        y = gmpy2.powmod(a, (p-1)//(one_factor**factors[one_factor]), p)
         g *= y
     return g
 
@@ -324,7 +313,7 @@ def generate_smooth_prime(bit_size, primitive_roots=[], smooth_bit_size=50, excl
         if len(primitive_roots) > 0: 
             for factor, factor_power in factors.items():
                 for primitive_root in primitive_roots:
-                    if pow(primitive_root, (n-1)//(factor**factor_power), n) == 1:
+                    if gmpy2.powmod(primitive_root, (n-1)//(factor**factor_power), n) == 1:
                         are_primitive_roots = False
                         break
 
@@ -344,7 +333,7 @@ def babystep_giantstep(g, h, p, upper_bound):
         g_j[g_j_tmp] = j
         g_j_tmp = (g_j_tmp*g) % p
 
-    g_m = invmod(pow(g, m, p), p)
+    g_m = invmod(gmpy2.powmod(g, m, p), p)
     y = h
     for i in range(m):
         if y in g_j:
@@ -370,18 +359,18 @@ def pohlig_hellman(g, h, n, n_order_factors):
         log.debug('Pohlig-Hellman iteration {}/{}'.format(ci, loop_size))
         ci += 1
 
-        gi = pow(g, no//(pi**ei), n)  # gi have order pi**ei
-        hi = pow(h, no//(pi**ei), n)  # hi is in <gi>
+        gi = gmpy2.powmod(g, no//(pi**ei), n)  # gi have order pi**ei
+        hi = gmpy2.powmod(h, no//(pi**ei), n)  # hi is in <gi>
 
         xk = 0
-        gamma = pow(gi, pi**(ei-1), n)  # gamma has order pi
+        gamma = gmpy2.powmod(gi, pi**(ei-1), n)  # gamma has order pi
         for k in range(ei):
-            hk = invmod(pow(gi, xk, n), n)
-            hk = pow(hk * hi, pi**(ei-1-k), n)  # hk is in <gamma>
+            hk = invmod(gmpy2.powmod(gi, xk, n), n)
+            hk = gmpy2.powmod(hk * hi, pi**(ei-1-k), n)  # hk is in <gamma>
             dk = babystep_giantstep(gamma, hk, n, pi)
             if dk is None:
                 return None
-            xk = (xk + pow(pi, k, pi**ei)*dk) % (pi**ei)
+            xk = (xk + gmpy2.powmod(pi, k, pi**ei)*dk) % (pi**ei)
         xi.append(xk)
         
     return crt(xi, [pi**ei for pi, ei in n_order_factors.items()])
