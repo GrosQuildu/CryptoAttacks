@@ -1,5 +1,7 @@
 # Cryptography attacks
 
+Archived. Scripts should work, but I'm not planning to refactor or add new attacks.
+
 ### Requirements:
 * Python 2.7 or 3.7
 * future
